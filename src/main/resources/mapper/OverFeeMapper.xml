@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.OverFeeMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.OverFee">
+    <!--@mbg.generated-->
+    <!--@Table t_over_fee-->
+    <id column="id" jdbcType="BIGINT" property="id"/>
+    <result column="k_code" jdbcType="VARCHAR" property="kCode"/>
+    <result column="area" jdbcType="INTEGER" property="area"/>
+    <result column="fee" jdbcType="DECIMAL" property="fee"/>
+    <result column="start_time" jdbcType="TIMESTAMP" property="startTime"/>
+    <result column="end_time" jdbcType="TIMESTAMP" property="endTime"/>
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, k_code, area, fee, start_time, end_time, first_weight, first_fee
+  </sql>
+
+  <resultMap id="exportMap" type="com.express.yto.dto.OverFeeExportDTO">
+    <id column="kCode" property="kCode"/>
+    <result column="kName" property="kName"/>
+    <collection property="overFeeList" ofType="com.express.yto.dto.OverFeeMiniDTO">
+      <result column="area" property="area"/>
+      <result column="fee" property="fee"/>
+      <result column="firstFee" property="firstFee"/>
+      <result column="firstWeight" property="firstWeight"/>
+      <result column="startTime" property="startTime"/>
+      <result column="endTime" property="endTime"/>
+    </collection>
+  </resultMap>
+
+  <select id="getListByCode" resultMap="exportMap">
+      SELECT
+        t1.k_code AS kCode,
+        t1.k_name AS kName,
+        t2.start_time AS startTime,
+        t2.end_time AS endTime,
+        t2.area AS area,
+        t2.fee AS fee,
+        t2.first_fee AS firstFee,
+        t2.first_weight AS firstWeight
+      FROM
+        t_customer t1,
+        t_over_fee t2
+      WHERE
+        t1.k_code = t2.k_code
+        <if test="list != null and list.size() != 0">
+          AND t2.k_code IN
+          <foreach collection="list" open="(" close=")" item="kCode" separator=",">
+            #{kCode}
+          </foreach>
+        </if>
+  </select>
+  <select id="getExcelByCode" resultType="com.express.yto.dto.OverFeeExcelMergeDTO">
+    SELECT
+      t1.k_code AS kCode,
+      t1.k_name AS kName,
+      t2.start_time AS startTime,
+      t2.end_time AS endTime,
+      t2.pre_fee AS prePayment,
+      t3.fee AS fee,
+      t3.area AS area,
+      t3.first_fee AS firstFee
+    FROM
+      t_customer t1,
+      t_prepayment t2,
+      t_over_fee t3
+    WHERE
+     t1.k_code = t2.k_code
+     AND t2.k_code = t3.k_code
+     AND t2.start_time = t3.start_time
+     AND t2.end_time = t3.end_time
+    <if test="list != null and list.size() != 0">
+      AND t1.k_code IN
+      <foreach collection="list" open="(" close=")" item="kCode" separator=",">
+        #{kCode}
+      </foreach>
+    </if>
+  </select>
+  <delete id="deleteBak">
+    delete from t_over_fee_bak
+  </delete>
+  <insert id="insertBak">
+    insert into t_over_fee_bak(k_code, area, fee, start_time, end_time, first_weight, first_fee)
+    select k_code, area, fee, start_time, end_time, first_weight, first_fee from t_over_fee
+  </insert>
+  <update id="updateBatch">
+    <foreach collection="list" item="data" separator=";">
+      update t_over_fee set end_time = #{data.startTime} where k_code = #{data.customerId,jdbcType=VARCHAR}
+    </foreach>
+  </update>
+</mapper>

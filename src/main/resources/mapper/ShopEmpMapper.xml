@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.ShopEmpMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.ShopEmp">
+    <!--@mbg.generated-->
+    <!--@Table t_shop_emp-->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="k_name" jdbcType="VARCHAR" property="kName" />
+    <result column="shop_id" jdbcType="VARCHAR" property="shopId" />
+    <result column="shop_name" jdbcType="VARCHAR" property="shopName" />
+    <result column="platform" jdbcType="VARCHAR" property="platform" />
+    <result column="emp_name" jdbcType="VARCHAR" property="empName" />
+    <result column="emp_type" jdbcType="VARCHAR" property="empType" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, k_code, k_name, shop_id, shop_name, platform, emp_name, emp_type
+  </sql>
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.FixedFeeMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.FixedFee">
+    <!--@mbg.generated-->
+    <!--@Table t_fixed_fee-->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="area" jdbcType="INTEGER" property="area" />
+    <result column="weight" jdbcType="DECIMAL" property="weight" />
+    <result column="fee" jdbcType="DECIMAL" property="fee" />
+    <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
+    <result column="end_time" jdbcType="TIMESTAMP" property="endTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, k_code, area, weight, fee, start_time, end_time
+  </sql>
+  <delete id="deleteBak">
+    delete from t_fixed_fee_bak
+  </delete>
+  <insert id="insertBak">
+    insert into t_fixed_fee_bak(k_code, area, weight, fee, start_time, end_time)
+    select k_code, area, weight, fee, start_time, end_time from t_fixed_fee
+  </insert>
+  <update id="updateBatch">
+    <foreach collection="list" separator=";" item="data">
+      update t_fixed_fee set end_time = #{data.startTime} where k_code = #{data.customerId}
+    </foreach>
+  </update>
+</mapper>
