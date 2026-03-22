@@ -2,6 +2,9 @@ package com.express.yto.service.impl;
 
 import static com.express.yto.util.AreaUtil.AREA_4;
 import static com.express.yto.util.AreaUtil.*;
+import static com.express.yto.util.BillDealUtil.getPrepaymentByDate;
+import static com.express.yto.util.BillDealUtil.isDateInRange;
+import static com.express.yto.util.BillDealUtil.judgeOver;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.express.yto.dto.ContractShopExcelDTO;
@@ -20,6 +23,7 @@ import com.express.yto.service.ExtraFeeService;
 import com.express.yto.service.FixedFeeService;
 import com.express.yto.service.OverFeeService;
 import com.express.yto.service.PrepaymentService;
+import com.express.yto.util.LocalDateRange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -243,61 +247,6 @@ public class CalculationServiceImpl implements CalculationService {
         return exportList;
     }
 
-    // 工具方法：根据日期快速匹配预付款（核心优化：O(1)匹配）
-    private BigDecimal getPrepaymentByDate(LocalDate targetDate, Map<LocalDateRange, BigDecimal> prepaymentRangeMap) {
-        for (Map.Entry<LocalDateRange, BigDecimal> entry : prepaymentRangeMap.entrySet()) {
-            LocalDateRange range = entry.getKey();
-            if (isDateInRange(targetDate, range.getStart(), range.getEnd())) {
-                return entry.getValue();
-            }
-        }
-        return BigDecimal.ZERO;
-    }
-
-    // 工具方法：日期区间判断（封装后减少重复代码）
-    private boolean isDateInRange(LocalDate target, LocalDate start, LocalDate end) {
-        return (target.isAfter(start) || target.isEqual(start)) && target.isBefore(end);
-    }
-
-    // 内部类：日期区间（替代字符串拼接key）
-    static class LocalDateRange {
-
-        private LocalDate start;
-        private LocalDate end;
-
-        public LocalDateRange(LocalDate start, LocalDate end) {
-            this.start = start;
-            this.end = end;
-        }
-
-        // 重写equals和hashCode，避免Map匹配问题
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            LocalDateRange that = (LocalDateRange) o;
-            return Objects.equals(start, that.start) && Objects.equals(end, that.end);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(start, end);
-        }
-
-        // getter
-        public LocalDate getStart() {
-            return start;
-        }
-
-        public LocalDate getEnd() {
-            return end;
-        }
-    }
-
 //    private List<ContractShopExcelDTO> doCalculation(List<ContractShopExcelDTO> list) {
 //        ContractShopExcelDTO anyone = list.stream().findFirst().get();
 //        List<ContractShopExcelDTO> dataList = new ArrayList<>(list);
@@ -483,19 +432,6 @@ public class CalculationServiceImpl implements CalculationService {
         return AREA_4.contains(dto.getProvince());
     }
 
-    /**
-     * 判断数据是否符合当前超重的数据
-     *
-     * @param dto
-     * @param overFee
-     * @param flagHaiNan
-     * @return
-     */
-    private boolean judgeOver(Map<String, Integer> areaMap, ContractShopExcelDTO dto, OverFee overFee, Boolean flagHaiNan) {
-        return (dto.getScanDate().isAfter(overFee.getStartTime()) || dto.getScanDate().equals(overFee.getStartTime()))
-                && dto.getScanDate().isBefore(overFee.getEndTime()) && isThisArea(areaMap, dto.getProvince(), overFee.getArea(),
-                flagHaiNan);
-    }
 
 
 }

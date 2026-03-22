@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 /**
  * @author Detective
  * @date Created in 2024/10/31
+ * 快递账单excel读取类
  */
 @Data
 @Builder

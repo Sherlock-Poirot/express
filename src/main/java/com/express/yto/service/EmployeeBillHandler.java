@@ -6,11 +6,11 @@ import java.util.List;
 
 /**
  * @author Detective
- * @date Created in 2025/9/25
+ * @date Created in 2026/3/20
  */
-public interface EmployeeService {
+public interface EmployeeBillHandler {
 
-    void employeeBill(String readPath, String exportPath);
+    void handle(DealDataInput input);
 
-    void dealEmployeeBill(DealDataInput input);
+    boolean supports(String companyId);
 }
