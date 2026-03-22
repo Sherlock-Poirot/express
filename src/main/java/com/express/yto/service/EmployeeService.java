@@ -10,7 +10,5 @@ import java.util.List;
  */
 public interface EmployeeService {
 
-    void employeeBill(String readPath, String exportPath);
-
     void dealEmployeeBill(DealDataInput input);
 }

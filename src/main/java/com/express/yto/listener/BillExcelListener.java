@@ -3,7 +3,6 @@ package com.express.yto.listener;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.express.yto.dto.ContractShopExcelDTO;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,7 @@ public class BillExcelListener extends AnalysisEventListener<ContractShopExcelDT
         if (data.getScanDate() == null) {
             throw new IllegalArgumentException("第" + context.readRowHolder().getRowIndex() + "扫描时间不合法");
         }
-        if (data.getWeight() == null){
+        if (data.getWeight() == null) {
             throw new IllegalArgumentException("第" + context.readRowHolder().getRowIndex() + "计费重量（kg）不合法");
         }
         if (data.getProvince() == null || data.getProvince().trim().isEmpty()) {
