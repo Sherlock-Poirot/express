@@ -1,5 +1,7 @@
 package com.express.yto.service.impl;
 
+import static com.express.yto.util.ExcelUtil.getBorderStyle;
+
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.read.listener.ReadListener;
@@ -142,14 +144,10 @@ public class DealDataServiceImpl implements DealDataService {
             BigDecimal amount = exportList.stream().map(ContractShopExcelDTO::getExpense)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             exportList.add(ContractShopExcelDTO.builder().expense(amount).build());
-            EasyExcel.write(exportPath + "/2月" + fileName, ContractShopExcelDTO.class).sheet().doWrite(exportList);
+            EasyExcel.write(exportPath + "/2月" + fileName, ContractShopExcelDTO.class).sheet()
+                    .registerWriteHandler(getBorderStyle()).doWrite(exportList);
             log.info("写入完成:{}", fileName);
         }
-    }
-
-    @Override
-    public void employeeBill(String readPath, String exportPath) {
-        employeeService.employeeBill(readPath, exportPath);
     }
 
     @Override
@@ -356,7 +354,8 @@ public class DealDataServiceImpl implements DealDataService {
             dto.setCount(data.getExpense());
             result.add(dto);
         }
-        EasyExcel.write(exportPath + "/汇总.xlsx", BillCompileDTO.class).sheet().doWrite(result);
+        EasyExcel.write(exportPath + "/汇总.xlsx", BillCompileDTO.class).sheet()
+                .registerWriteHandler(getBorderStyle()).doWrite(result);
     }
 
     @Override

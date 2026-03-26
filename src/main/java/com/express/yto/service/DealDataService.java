@@ -12,8 +12,6 @@ public interface DealDataService {
 
     void doDeal(String readPath, String exportPath, Boolean springFestival, String companyId);
 
-    void employeeBill(String readPath, String exportPath);
-
     RestResult<PreDealDTO> preDeal(String path);
 
     void count(String path);

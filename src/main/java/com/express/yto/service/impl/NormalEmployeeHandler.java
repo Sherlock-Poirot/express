@@ -3,6 +3,7 @@ package com.express.yto.service.impl;
 import static com.express.yto.util.AreaUtil.isThisArea;
 import static com.express.yto.util.BillDealUtil.isDateInRange;
 import static com.express.yto.util.BillDealUtil.judgeOver;
+import static com.express.yto.util.ExcelUtil.getBorderStyle;
 
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.ExcelReader;
@@ -116,7 +117,8 @@ public class NormalEmployeeHandler implements EmployeeBillHandler {
         appendSum(aliList);
         appendSum(looseList);
         appendSum(limitedList);
-        ExcelWriter writer = EasyExcel.write(input.getExportPath() + "/导出" + file.getName()).build();
+        ExcelWriter writer = EasyExcel.write(input.getExportPath() + "/导出" + file.getName())
+                .registerWriteHandler(getBorderStyle()).build();
         WriteSheet ali = EasyExcel.writerSheet(0, "淘宝").head(ContractShopExcelDTO.class).build();
         WriteSheet loose = EasyExcel.writerSheet(1, "散件").head(ContractShopExcelDTO.class).build();
         WriteSheet limit = EasyExcel.writerSheet(2, "限定").head(ContractShopExcelDTO.class).build();
