@@ -7,6 +7,8 @@ spring:
     username: root
     password: Stn123456
     url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false
+#    测试库
+#    url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false
 server:
   port: 8088
 

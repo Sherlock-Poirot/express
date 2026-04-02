@@ -75,7 +75,7 @@ public class DealDataServiceImpl implements DealDataService {
     private static final String FOLD_BILL_CUSTOMER = "余训正,许晓亭,蔡心怡清清美家居旗舰店坝头,陈宇健,通泰及宇航物流叶总鞋子,邵东亮,尾舍,萱宝嗳妈咪黄力军,张卫丽,现望使桐屿富通家园,ceo南山及趣多多,王晨,郑永华,圣强,浙江耀都科技有限公司,王欣怡,郑远,陈舒婷";
 
     @Override
-    public void doDeal(String readPath, String exportPath, Boolean springFestival, String companyId) {
+    public void doDeal(String readPath, String exportPath, Boolean springFestival, String companyId, String month) {
         File dir = new File(readPath);
         String[] fileNames = dir.list();
         assert fileNames != null;
@@ -144,7 +144,7 @@ public class DealDataServiceImpl implements DealDataService {
             BigDecimal amount = exportList.stream().map(ContractShopExcelDTO::getExpense)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             exportList.add(ContractShopExcelDTO.builder().expense(amount).build());
-            EasyExcel.write(exportPath + "/2月" + fileName, ContractShopExcelDTO.class).sheet()
+            EasyExcel.write(exportPath + "/" + month + fileName, ContractShopExcelDTO.class).sheet()
                     .registerWriteHandler(getBorderStyle()).doWrite(exportList);
             log.info("写入完成:{}", fileName);
         }

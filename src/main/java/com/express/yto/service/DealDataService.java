@@ -10,7 +10,7 @@ import com.express.yto.dto.RestResult;
  */
 public interface DealDataService {
 
-    void doDeal(String readPath, String exportPath, Boolean springFestival, String companyId);
+    void doDeal(String readPath, String exportPath, Boolean springFestival, String companyId, String month);
 
     RestResult<PreDealDTO> preDeal(String path);
 

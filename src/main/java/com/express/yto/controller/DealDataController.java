@@ -4,6 +4,7 @@ import com.express.yto.dto.DealDataInput;
 import com.express.yto.dto.PreDealDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.service.DealDataService;
+import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/dealData")
 @Slf4j
+@Api(tags = "数据处理控制层")
 public class DealDataController {
 
     @Autowired
@@ -32,7 +34,7 @@ public class DealDataController {
     public RestResult<String> deal(@RequestBody DealDataInput input) {
         log.info("开始时间，{}", LocalDateTime.now());
         dealDataService.doDeal(input.getReadPath(), input.getExportPath(),
-                input.getSpringFestival(), input.getCompanyId());
+                input.getSpringFestival(), input.getCompanyId(), input.getMonth());
         log.info("结束时间，{}", LocalDateTime.now());
         return RestResult.ok("操作成功");
     }
