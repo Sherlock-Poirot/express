@@ -6,9 +6,9 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
     username: root
     password: Stn123456
-    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
 #    测试库
-#    url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false
+#    url: jdbc:mysql://localhost:3306/express_bak?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
 server:
   port: 8088
 

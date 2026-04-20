@@ -22,7 +22,7 @@ public class PrepayListener extends AnalysisEventListener<PrepayExcelDTO> {
         if (data.getKCode() == null || data.getKCode().trim().isEmpty()) {
             throw new IllegalArgumentException("第" + context.readRowHolder().getRowIndex() + "行客户ID为不合法");
         }
-        if (data.getPreFee() == null || data.getPreFee().compareTo(BigDecimal.ZERO) == 0) {
+        if (data.getPreFee() == null) {
             throw new IllegalArgumentException("第" + context.readRowHolder().getRowIndex() + "行价格不合法");
         }
         if (data.getStartTime() == null) {

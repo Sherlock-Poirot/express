@@ -117,7 +117,7 @@ public class NormalEmployeeHandler implements EmployeeBillHandler {
         appendSum(aliList);
         appendSum(looseList);
         appendSum(limitedList);
-        ExcelWriter writer = EasyExcel.write(input.getExportPath() + "/导出" + file.getName())
+        ExcelWriter writer = EasyExcel.write(input.getExportPath() + "/" + input.getMonth() + file.getName())
                 .registerWriteHandler(getBorderStyle()).build();
         WriteSheet ali = EasyExcel.writerSheet(0, "淘宝").head(ContractShopExcelDTO.class).build();
         WriteSheet loose = EasyExcel.writerSheet(1, "散件").head(ContractShopExcelDTO.class).build();

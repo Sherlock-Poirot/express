@@ -232,7 +232,7 @@ public class DealDataServiceImpl implements DealDataService {
                 log.info("{},不存在客户表", fileName);
             }
         }
-
+        log.info("校验完成");
         return null;
     }
 
@@ -338,9 +338,13 @@ public class DealDataServiceImpl implements DealDataService {
                     .kName(fileName.replaceAll("[\\d月]", "").replaceAll(".xlsx", "")).build();
             String filePath = readPath + "/" + fileName;
             System.out.println("filePath:" + filePath);
+            List<String> list = new ArrayList<>();
             EasyExcel.read(filePath, ContractShopExcelDTO.class, new ReadListener<ContractShopExcelDTO>() {
                 @Override
                 public void invoke(ContractShopExcelDTO dto, AnalysisContext analysisContext) {
+                    if (StringUtils.isNotBlank(dto.getId())){
+                        list.add(dto.getId());
+                    }
                     data.setExpense(dto.getExpense());
                 }
 
@@ -352,9 +356,10 @@ public class DealDataServiceImpl implements DealDataService {
             BillCompileDTO dto = new BillCompileDTO();
             dto.setName(data.getKName());
             dto.setCount(data.getExpense());
+            dto.setAmount(list.size());
             result.add(dto);
         }
-        EasyExcel.write(exportPath + "/汇总.xlsx", BillCompileDTO.class).sheet()
+        EasyExcel.write(exportPath + "/"+input.getMonth()+"汇总.xlsx", BillCompileDTO.class).sheet()
                 .registerWriteHandler(getBorderStyle()).doWrite(result);
     }
 

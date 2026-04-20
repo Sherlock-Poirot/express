@@ -14,6 +14,9 @@ public class BillCompileDTO {
     @ExcelProperty("客户名称")
     private String name;
 
+    @ExcelProperty("数量")
+    private Integer amount;
+
     @ExcelProperty("金额合计")
     private BigDecimal count;
 }

@@ -59,11 +59,11 @@ public class RuBinBinExcelHandler implements ExcelFileHandler {
             BigDecimal weight = dto.getWeight().subtract(BigDecimal.ONE);
             BigDecimal units = weight.divide(WEIGHT_UNIT, 0, RoundingMode.CEILING);
 
-            if (dto.getScanDate().isAfter(LocalDate.of(2025, 8, 24))) {
+            if (dto.getScanDate().isAfter(LocalDate.of(2026, 3, 3))) {
                 // 总费用 = 单位数量 × 单价
-                units = units.multiply(PRICE_PER_0_1KG).add(BigDecimal.valueOf(3.1)).subtract(BigDecimal.valueOf(3));
+                units = units.multiply(PRICE_PER_0_1KG).add(BigDecimal.valueOf(3)).subtract(BigDecimal.valueOf(3));
             } else {
-                units = units.multiply(PRICE_PER_0_1KG).add(BigDecimal.valueOf(2.7)).subtract(BigDecimal.valueOf(2.7));
+                units = units.multiply(PRICE_PER_0_1KG).add(BigDecimal.valueOf(3.2)).subtract(BigDecimal.valueOf(3.1));
             }
             if ("北京，上海".contains(dto.getProvince())) {
                 units = units.add(BigDecimal.ONE);
