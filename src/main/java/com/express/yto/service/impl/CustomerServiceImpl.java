@@ -4,10 +4,13 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.CustomerMapper;
 import com.express.yto.dto.CustomerExcelDTO;
 import com.express.yto.dto.CustomerInput;
+import com.express.yto.dto.CustomerSearchInput;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.model.Customer;
 import com.express.yto.service.CustomerService;
@@ -75,5 +78,19 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Override
     public void delete(List<Integer> ids) {
         customerMapper.deleteByIds(ids);
+    }
+
+    @Override
+    public IPage<Customer> search(CustomerSearchInput input) {
+        Page<Customer> page = new Page<>(input.getPageNo(), input.getPageSize());
+        QueryWrapper<Customer> qw = new QueryWrapper<>();
+        if (StringUtils.isNotBlank(input.getKName())) {
+            qw.like("k_name", input.getKName());
+        }
+        if (StringUtils.isNotBlank(input.getKCode())) {
+            qw.eq("k_code", input.getKName());
+        }
+
+        return customerMapper.selectPage(page, qw);
     }
 }

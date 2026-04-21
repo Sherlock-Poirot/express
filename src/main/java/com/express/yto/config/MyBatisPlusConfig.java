@@ -1,7 +1,10 @@
 package com.express.yto.config;
 
 
+import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -19,7 +22,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 public class MyBatisPlusConfig {
 
     @Bean
-    public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
+    public SqlSessionFactory sqlSessionFactory(DataSource dataSource, MybatisPlusInterceptor mybatisPlusInterceptor) throws Exception {
         MybatisSqlSessionFactoryBean sqlSessionFactory = new MybatisSqlSessionFactoryBean();
         sqlSessionFactory.setDataSource(dataSource);
         // 关键：设置XML文件扫描路径
@@ -32,8 +35,16 @@ public class MyBatisPlusConfig {
         configuration.setCacheEnabled(false);
         // 注册自定义的TypeHandler
         configuration.getTypeHandlerRegistry().register(LocalDateTypeHandler.class);
-
+        configuration.addInterceptor(mybatisPlusInterceptor);
         sqlSessionFactory.setConfiguration(configuration);
         return sqlSessionFactory.getObject();
+    }
+
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        // 添加分页插件
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
     }
 }
