@@ -1,5 +1,6 @@
 package com.express.yto.util;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -36,6 +37,20 @@ public class AreaUtil {
      * 五区
      */
     public static final String AREA_5 = "新疆维吾尔自治区、西藏自治区";
+
+    public static Map<Integer, String> AREA_DICT = new HashMap<>(8);
+
+    static {
+        AREA_DICT.put(1, "一区");
+        AREA_DICT.put(2, "二区");
+        AREA_DICT.put(3, "三区");
+        AREA_DICT.put(4, "四区");
+        AREA_DICT.put(5, "五区");
+        AREA_DICT.put(6, "六区");
+        AREA_DICT.put(7, "七区");
+        AREA_DICT.put(8, "八区");
+        AREA_DICT.put(9, "九区");
+        AREA_DICT.put(10, "十区");    }
 
     /**
      * 判断某个省份是否是一区二区三区...
