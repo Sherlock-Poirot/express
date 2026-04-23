@@ -106,11 +106,11 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     public IPage<Customer> search(CustomerSearchInput input) {
         Page<Customer> page = new Page<>(input.getPageNo(), input.getPageSize());
         QueryWrapper<Customer> qw = new QueryWrapper<>();
-        if (StringUtils.isNotBlank(input.getKName())) {
-            qw.like("k_name", input.getKName());
+        if (StringUtils.isNotBlank(input.getkName())) {
+            qw.like("k_name", input.getkName());
         }
-        if (StringUtils.isNotBlank(input.getKCode())) {
-            qw.eq("k_code", input.getKCode());
+        if (StringUtils.isNotBlank(input.getkCode())) {
+            qw.eq("k_code", input.getkCode());
         }
 
         return customerMapper.selectPage(page, qw);
@@ -126,50 +126,54 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         return combine(fixedList, overList, prepaymentList);
     }
 
-    private List<CustomerPriceDetailDTO> combine(List<FixedFee> fixedList, List<OverFee> overList,
-            List<Prepayment> prepaymentList) {
+    private List<CustomerPriceDetailDTO> combine(List<FixedFee> fixedList, List<OverFee> overList, List<Prepayment> prepaymentList) {
+
+        // ====================== 1. 构建 fixedMap（优化版） ======================
         Map<String, List<FixedTinyDTO>> fixedMap = new HashMap<>();
-        for (FixedFee dto : fixedList) {
-            String key = StringUtils.joinWith("&", dto.getStartTime(), dto.getEndTime(), dto.getArea());
-            if (fixedMap.get(key) == null) {
-                List<FixedTinyDTO> list = new ArrayList<>(1);
-                list.add(FixedTinyDTO.builder().weight(dto.getWeight()).fee(dto.getFee()).build());
-                fixedMap.put(key, list);
-            } else {
-                List<FixedTinyDTO> list = fixedMap.get(key);
-                list.add(FixedTinyDTO.builder().weight(dto.getWeight()).fee(dto.getFee()).build());
-                fixedMap.put(key, list);
-            }
-        }
-        Map<String, List<PriceDetailDTO>> detailMap = new HashMap<>();
-        for (OverFee dto : overList) {
-            String key = StringUtils.joinWith("&", dto.getStartTime(), dto.getEndTime());
-            String fixKey = StringUtils.joinWith("&", dto.getStartTime(), dto.getEndTime(), dto.getArea());
-            if (detailMap.get(key) == null){
-                List<PriceDetailDTO> detail = new ArrayList<>();
-                detail.add(PriceDetailDTO.builder().startTime(dto.getStartTime()).endTime(dto.getEndTime())
-                        .area(AREA_DICT.get(dto.getArea())).firstFee(dto.getFirstFee()).overFee(dto.getFee())
-                        .fixedFee(fixedMap.get(fixKey)).build());
-                detailMap.put(key, detail);
-            } else {
-                List<PriceDetailDTO> detail = detailMap.get(key);
-                detail.add(PriceDetailDTO.builder().startTime(dto.getStartTime()).endTime(dto.getEndTime())
-                        .area(AREA_DICT.get(dto.getArea())).firstFee(dto.getFirstFee()).overFee(dto.getFee())
-                        .fixedFee(fixedMap.get(fixKey)).build());
-                detailMap.put(key, detail);
-            }
+        for (FixedFee fee : fixedList) {
+            String key = StringUtils.joinWith("&", fee.getStartTime(), fee.getEndTime(), fee.getArea());
+            FixedTinyDTO tinyDTO = FixedTinyDTO.builder()
+                    .weight(fee.getWeight())
+                    .fee(fee.getFee())
+                    .build();
+
+            // 一行代替 if/else + put，这才是 Map 正确用法！
+            fixedMap.computeIfAbsent(key, k -> new ArrayList<>()).add(tinyDTO);
         }
 
+        // ====================== 2. 构建 detailMap（优化版） ======================
+        Map<String, List<PriceDetailDTO>> detailMap = new HashMap<>();
+        for (OverFee overFee : overList) {
+            String timeKey = StringUtils.joinWith("&", overFee.getStartTime(), overFee.getEndTime());
+            String fixKey = StringUtils.joinWith("&", overFee.getStartTime(), overFee.getEndTime(), overFee.getArea());
+
+            PriceDetailDTO priceDetail = PriceDetailDTO.builder()
+                    .startTime(overFee.getStartTime())
+                    .endTime(overFee.getEndTime())
+                    .area(AREA_DICT.get(overFee.getArea()))
+                    .firstFee(overFee.getFirstFee())
+                    .overFee(overFee.getFee())
+                    .fixedFee(fixedMap.get(fixKey))
+                    .build();
+
+            // 同样一行搞定
+            detailMap.computeIfAbsent(timeKey, k -> new ArrayList<>()).add(priceDetail);
+        }
+
+        // ====================== 3. 组装最终结果 ======================
         List<CustomerPriceDetailDTO> result = new ArrayList<>();
         for (Prepayment prepayment : prepaymentList) {
             String key = StringUtils.joinWith("&", prepayment.getStartTime(), prepayment.getEndTime());
+
             CustomerPriceDetailDTO dto = new CustomerPriceDetailDTO();
             dto.setStartTime(prepayment.getStartTime().toString());
             dto.setEndTime(prepayment.getEndTime().toString());
             dto.setPrepayment(prepayment.getPreFee());
             dto.setDetail(detailMap.get(key));
+
             result.add(dto);
         }
+
         return result;
     }
 
