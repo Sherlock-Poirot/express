@@ -13,6 +13,16 @@
     <!--@mbg.generated-->
     id, company_id, area_num, area_city
   </sql>
+  <select id="getList" resultType="com.express.yto.dto.AreaListDTO">
+    select
+        t2.company_name AS companyName,
+        t1.company_id AS companyId,
+        t1.area_num AS areaNum,
+        t1.area_city AS areaCity
+    from t_area t1, t_company t2
+    where t1.company_id = t2.company_id
+
+  </select>
 
 
 </mapper>

@@ -1,7 +1,9 @@
 package com.express.yto.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.express.yto.dto.AreaListDTO;
 import com.express.yto.model.Area;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
@@ -11,4 +13,5 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface AreaMapper extends BaseMapper<Area> {
 
+    List<AreaListDTO> getList();
 }
