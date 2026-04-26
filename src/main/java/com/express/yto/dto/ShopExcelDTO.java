@@ -11,10 +11,10 @@ import lombok.Data;
 public class ShopExcelDTO {
 
     @ExcelProperty("商户编码（K码）")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("客户名称")
-    private String kName;
+    private String name;
 
     @ExcelProperty("店铺菜鸟1")
     private String taoBao1;

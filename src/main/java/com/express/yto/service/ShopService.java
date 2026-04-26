@@ -1,7 +1,12 @@
 package com.express.yto.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.ShopEmpInput;
 import com.express.yto.model.Shop;
+import com.express.yto.model.ShopEmp;
+import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * @author Detective
@@ -9,9 +14,13 @@ import com.express.yto.model.Shop;
  */
 public interface ShopService extends IService<Shop> {
 
-    void batchInsert(String readPath);
+    IPage<ShopEmp> search(String code, String name, String empName, Integer pageNo, Integer pageSize);
 
-    void export(String fileName);
+    void batchDelete(List<Integer> ids);
 
-    void batchInsertEmp(String readPath);
+    void add(ShopEmpInput input);
+
+    void update(ShopEmpInput input);
+
+    int importShop(MultipartFile file);
 }

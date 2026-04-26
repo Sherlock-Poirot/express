@@ -33,14 +33,14 @@ public class Shop {
      */
     @TableField(value = "k_code")
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     /**
      * 客户名称
      */
     @TableField(value = "k_name")
     @ExcelProperty(value = "客户名称")
-    private String kName;
+    private String name;
 
     /**
      * 店铺id
