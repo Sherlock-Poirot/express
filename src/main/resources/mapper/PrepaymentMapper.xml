@@ -26,4 +26,7 @@
       update t_prepayment set end_time = #{data.startTime} where k_code = #{data.customerId}
     </foreach>
   </update>
+  <delete id="updateEndTime">
+    update t_prepayment set end_time = #{endTime} where k_code = #{code} and end_time = '2999-12-31'
+  </delete>
 </mapper>

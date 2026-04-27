@@ -89,4 +89,7 @@
       update t_over_fee set end_time = #{data.startTime} where k_code = #{data.customerId,jdbcType=VARCHAR}
     </foreach>
   </update>
+  <update id="updateEndTime">
+    update t_fixed_fee set end_time = #{endTime} where k_code = #{code} and end_time = '2999-12-31'
+  </update>
 </mapper>

@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.express.yto.dto.CustomerInput;
 import com.express.yto.dto.CustomerPriceDetailDTO;
+import com.express.yto.dto.CustomerPriceInput;
 import com.express.yto.dto.CustomerSearchInput;
+import com.express.yto.dto.PriceDeleteInput;
 import com.express.yto.model.Customer;
 import java.util.List;
 
@@ -19,9 +21,13 @@ public interface CustomerService extends IService<Customer> {
 
     void add(CustomerInput input);
 
-    void delete(List<Integer> ids);
+    void delete(List<Long> ids);
 
     IPage<Customer> search(CustomerSearchInput input);
 
     List<CustomerPriceDetailDTO> getPrice(String kCode);
+
+    void deletePrice(PriceDeleteInput input);
+
+    void addPrice(List<CustomerPriceInput> input);
 }

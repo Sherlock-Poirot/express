@@ -17,11 +17,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CustomerPriceDetailDTO {
 
+    private String name;
+
+    private String code;
+
     private String startTime;
 
     private String endTime;
 
     private BigDecimal prepayment;
+
+    private String remark;
 
     private List<PriceDetailDTO> detail;
 

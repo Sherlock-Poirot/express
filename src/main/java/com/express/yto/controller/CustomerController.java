@@ -3,7 +3,9 @@ package com.express.yto.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.express.yto.dto.CustomerInput;
 import com.express.yto.dto.CustomerPriceDetailDTO;
+import com.express.yto.dto.CustomerPriceInput;
 import com.express.yto.dto.CustomerSearchInput;
+import com.express.yto.dto.PriceDeleteInput;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.Customer;
 import com.express.yto.service.CustomerService;
@@ -39,28 +41,43 @@ public class CustomerController {
 
 
     @ApiOperation("新增")
-    @PostMapping("add")
+    @PostMapping("/add")
     public RestResult<String> add(@RequestBody CustomerInput input){
         customerService.add(input);
         return RestResult.ok("操作成功");
     }
 
     @ApiOperation("批量删除")
-    @PostMapping("batchRemove")
-    public RestResult<String> add(@RequestParam List<Integer> ids){
+    @PostMapping("/batchDelete")
+    public RestResult<String> add(@RequestBody List<Long> ids){
         customerService.delete(ids);
         return RestResult.ok("操作成功");
     }
 
     @ApiOperation("分页查询")
-    @PostMapping("search")
+    @PostMapping("/search")
     public RestResult<IPage<Customer>> search(@RequestBody CustomerSearchInput input){
         return RestResult.ok(customerService.search(input));
     }
 
     @ApiOperation("客户价格详情")
-    @GetMapping("price")
+    @GetMapping("/price")
     public RestResult<List<CustomerPriceDetailDTO>> getPrice(@RequestParam String kCode){
         return RestResult.ok(customerService.getPrice(kCode));
     }
+
+    @ApiOperation("删除价格表")
+    @PostMapping("/deletePrice")
+    public RestResult<String> deletePrice(@RequestBody PriceDeleteInput input){
+        customerService.deletePrice(input);
+        return RestResult.ok("操作成功");
+    }
+
+    @ApiOperation("新增客户价格")
+    @PostMapping("/addPrice")
+    public RestResult<String> addPrice(@RequestBody List<CustomerPriceInput> input){
+        customerService.addPrice(input);
+        return RestResult.ok("操作成功");
+    }
+
 }

@@ -6,6 +6,7 @@ import com.express.yto.dto.OverFeeExcelMergeDTO;
 import com.express.yto.dto.OverFeeExportDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.OverFee;
+import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -27,4 +28,6 @@ public interface OverFeeMapper extends BaseMapper<OverFee> {
     void insertBak();
 
     void updateBatch(@Param("list") List<CustomerIdAndTimeDTO> overUpdateList);
+
+    void updateEndTime(@Param("code") String code, @Param("endTime") LocalDate endTime);
 }
