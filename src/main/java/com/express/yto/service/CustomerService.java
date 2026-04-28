@@ -2,6 +2,7 @@ package com.express.yto.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.CustomerDetailDTO;
 import com.express.yto.dto.CustomerInput;
 import com.express.yto.dto.CustomerPriceDetailDTO;
 import com.express.yto.dto.CustomerPriceInput;
@@ -19,7 +20,7 @@ public interface CustomerService extends IService<Customer> {
 
     void importByExcel(String filePath);
 
-    void add(CustomerInput input);
+    void add(CustomerDetailDTO input);
 
     void delete(List<Long> ids);
 
@@ -30,4 +31,8 @@ public interface CustomerService extends IService<Customer> {
     void deletePrice(PriceDeleteInput input);
 
     void addPrice(List<CustomerPriceInput> input);
+
+    CustomerDetailDTO getDetail(String code);
+
+    void updateCustomer(CustomerDetailDTO input);
 }

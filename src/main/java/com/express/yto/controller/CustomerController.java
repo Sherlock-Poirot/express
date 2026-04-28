@@ -1,6 +1,7 @@
 package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.express.yto.dto.CustomerDetailDTO;
 import com.express.yto.dto.CustomerInput;
 import com.express.yto.dto.CustomerPriceDetailDTO;
 import com.express.yto.dto.CustomerPriceInput;
@@ -42,7 +43,7 @@ public class CustomerController {
 
     @ApiOperation("新增")
     @PostMapping("/add")
-    public RestResult<String> add(@RequestBody CustomerInput input){
+    public RestResult<String> add(@RequestBody CustomerDetailDTO input){
         customerService.add(input);
         return RestResult.ok("操作成功");
     }
@@ -58,6 +59,19 @@ public class CustomerController {
     @PostMapping("/search")
     public RestResult<IPage<Customer>> search(@RequestBody CustomerSearchInput input){
         return RestResult.ok(customerService.search(input));
+    }
+
+    @ApiOperation("客户详情")
+    @GetMapping("/detail")
+    public RestResult<CustomerDetailDTO> getDetail(@RequestParam("code") String code){
+        return RestResult.ok(customerService.getDetail(code));
+    }
+
+    @ApiOperation("编辑客户")
+    @PostMapping("/update")
+    public RestResult<String> updateCustomer(@RequestBody CustomerDetailDTO input){
+        customerService.updateCustomer(input);
+        return RestResult.ok("操作成功");
     }
 
     @ApiOperation("客户价格详情")
