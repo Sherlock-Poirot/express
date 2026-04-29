@@ -160,9 +160,9 @@ public class NormalEmployeeHandler implements EmployeeBillHandler {
         });
 
         // 3. 一次性查询所有基础数据（原逻辑保留，已最优）
-        List<FixedFee> fixedFeeList = fixedFeeService.list(new QueryWrapper<FixedFee>().eq("k_code", companyId));
-        List<OverFee> overFeeList = overFeeService.list(new QueryWrapper<OverFee>().eq("k_code", companyId));
-        List<ExtraFee> extraFeeList = extraFeeService.list(new QueryWrapper<ExtraFee>().eq("k_code", companyId));
+        List<FixedFee> fixedFeeList = fixedFeeService.list(new QueryWrapper<FixedFee>().eq("code", companyId));
+        List<OverFee> overFeeList = overFeeService.list(new QueryWrapper<OverFee>().eq("code", companyId));
+        List<ExtraFee> extraFeeList = extraFeeService.list(new QueryWrapper<ExtraFee>().eq("code", companyId));
         List<Area> areaList = areaService
                 .list(new QueryWrapper<Area>().eq("company_id", companyId.replaceAll("_limit", "")));
 

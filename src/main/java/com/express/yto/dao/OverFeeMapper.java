@@ -18,11 +18,6 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface OverFeeMapper extends BaseMapper<OverFee> {
 
-
-    List<OverFeeExportDTO> getListByCode(@Param("list") List<String> kCodeList);
-
-    List<OverFeeExcelMergeDTO> getExcelByCode(@Param("list") List<String> kCodeList);
-
     void deleteBak();
 
     void insertBak();

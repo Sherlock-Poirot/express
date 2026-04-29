@@ -13,7 +13,7 @@ public class ShopEmpInput {
 
     private String code;
 
-    private String name;
+    private String custName;
 
     private String shopId;
 

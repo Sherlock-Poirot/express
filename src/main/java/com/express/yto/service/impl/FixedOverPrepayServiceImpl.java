@@ -87,8 +87,8 @@ public class FixedOverPrepayServiceImpl implements FixedOverPrepayService {
         Map<String, LocalDate> fixedUpdateMap = new HashMap<>();
         List<FixedFee> fixedFeeList = new ArrayList<>();
         for (FixedExcelDTO dto : fixedExcelList) {
-            fixedUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getKCode()).startTime(
-                    fixedUpdateMap.computeIfAbsent(dto.getKCode(), k -> dto.getStartTime())
+            fixedUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getCode()).startTime(
+                    fixedUpdateMap.computeIfAbsent(dto.getCode(), k -> dto.getStartTime())
             ).build());
             FixedFee fixedFee = new FixedFee();
             BeanUtils.copyProperties(dto, fixedFee);
@@ -104,8 +104,8 @@ public class FixedOverPrepayServiceImpl implements FixedOverPrepayService {
         Map<String, LocalDate> overUpdateMap = new HashMap<>();
         List<OverFee> overFeeList = new ArrayList<>();
         for (OverExcelDTO dto : overExcelList) {
-            overUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getKCode()).startTime(
-                    overUpdateMap.computeIfAbsent(dto.getKCode(), k -> dto.getStartTime())
+            overUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getCode()).startTime(
+                    overUpdateMap.computeIfAbsent(dto.getCode(), k -> dto.getStartTime())
             ).build());
             OverFee overFee = new OverFee();
             BeanUtils.copyProperties(dto, overFee);
@@ -122,8 +122,8 @@ public class FixedOverPrepayServiceImpl implements FixedOverPrepayService {
         Map<String, LocalDate> preUpdateMap = new HashMap<>();
         List<Prepayment> prepaymentList = new ArrayList<>();
         for (PrepayExcelDTO dto : prepayExcelList) {
-            preUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getKCode()).startTime(
-                    preUpdateMap.computeIfAbsent(dto.getKCode(), k -> dto.getStartTime())
+            preUpdateList.add(CustomerIdAndTimeDTO.builder().customerId(dto.getCode()).startTime(
+                    preUpdateMap.computeIfAbsent(dto.getCode(), k -> dto.getStartTime())
             ).build());
             Prepayment prepayment = new Prepayment();
             BeanUtils.copyProperties(dto, prepayment);

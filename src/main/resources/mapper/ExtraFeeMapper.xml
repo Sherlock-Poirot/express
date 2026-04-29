@@ -5,12 +5,12 @@
     <!--@mbg.generated-->
     <!--@Table t_extra_fee-->
     <id column="id" jdbcType="INTEGER" property="id" />
-    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="code" jdbcType="VARCHAR" property="code" />
     <result column="area_name" jdbcType="VARCHAR" property="areaName" />
     <result column="fee" jdbcType="DECIMAL" property="fee" />
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_code, area_name, fee
+    id, code, area_name, fee
   </sql>
 </mapper>

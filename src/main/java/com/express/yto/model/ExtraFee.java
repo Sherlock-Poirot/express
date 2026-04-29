@@ -23,8 +23,8 @@ public class ExtraFee {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    @TableField(value = "k_code")
-    private String kCode;
+    @TableField(value = "code")
+    private String code;
 
     @TableField(value = "area_name")
     private String areaName;

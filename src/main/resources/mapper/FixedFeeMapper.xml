@@ -5,7 +5,7 @@
     <!--@mbg.generated-->
     <!--@Table t_fixed_fee-->
     <id column="id" jdbcType="BIGINT" property="id" />
-    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="code" jdbcType="VARCHAR" property="code" />
     <result column="area" jdbcType="INTEGER" property="area" />
     <result column="weight" jdbcType="DECIMAL" property="weight" />
     <result column="fee" jdbcType="DECIMAL" property="fee" />
@@ -14,21 +14,21 @@
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_code, area, weight, fee, start_time, end_time
+    id, code, area, weight, fee, start_time, end_time
   </sql>
   <delete id="deleteBak">
     delete from t_fixed_fee_bak
   </delete>
   <insert id="insertBak">
-    insert into t_fixed_fee_bak(k_code, area, weight, fee, start_time, end_time)
-    select k_code, area, weight, fee, start_time, end_time from t_fixed_fee
+    insert into t_fixed_fee_bak(code, area, weight, fee, start_time, end_time)
+    select code, area, weight, fee, start_time, end_time from t_fixed_fee
   </insert>
   <update id="updateBatch">
     <foreach collection="list" separator=";" item="data">
-      update t_fixed_fee set end_time = #{data.startTime} where k_code = #{data.customerId}
+      update t_fixed_fee set end_time = #{data.startTime} where code = #{data.customerId}
     </foreach>
   </update>
   <update id="updateEndTime">
-    update t_fixed_fee set end_time = #{endTime} where k_code = #{code} and end_time = '2999-12-31'
+    update t_fixed_fee set end_time = #{endTime} where code = #{code} and end_time = '2999-12-31'
   </update>
 </mapper>

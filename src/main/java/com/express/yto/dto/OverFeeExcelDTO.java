@@ -16,10 +16,10 @@ public class OverFeeExcelDTO {
     private BigDecimal prePayment;
 
     @ExcelProperty("客户名称")
-    private String kName;
+    private String name;
 
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("一区首重")
     private BigDecimal areaOneFee;

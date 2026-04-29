@@ -14,12 +14,12 @@ public class CustomerInput {
     /**
      * 客户名称
      */
-    private String kName;
+    private String name;
 
     /**
      * 客户K码
      */
-    private String kCode;
+    private String code;
 
     /**
      * 海南是否三区

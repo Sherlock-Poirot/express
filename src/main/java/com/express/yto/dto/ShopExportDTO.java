@@ -12,7 +12,7 @@ import lombok.Data;
 public class ShopExportDTO {
 
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     /**
      * 平台
@@ -24,7 +24,7 @@ public class ShopExportDTO {
      * 客户名称
      */
     @ExcelProperty(value = "客户名称")
-    private String kName;
+    private String name;
 
 
     /**

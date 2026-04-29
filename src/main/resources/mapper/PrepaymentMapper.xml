@@ -5,28 +5,28 @@
     <!--@mbg.generated-->
     <!--@Table t_prepayment-->
     <id column="id" jdbcType="BIGINT" property="id" />
-    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="code" jdbcType="VARCHAR" property="code" />
     <result column="pre_fee" jdbcType="DECIMAL" property="preFee" />
     <result column="start_time" jdbcType="TIMESTAMP" property="startTime" />
     <result column="end_time" jdbcType="TIMESTAMP" property="endTime" />
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_code, pre_fee, start_time, end_time
+    id, code, pre_fee, start_time, end_time
   </sql>
   <delete id="deleteBak">
     delete from t_prepayment_bak
   </delete>
   <insert id="insertBak">
-    insert into t_prepayment_bak(k_code, pre_fee, start_time, end_time)
-    select k_code, pre_fee, start_time, end_time from t_prepayment
+    insert into t_prepayment_bak(code, pre_fee, start_time, end_time)
+    select code, pre_fee, start_time, end_time from t_prepayment
   </insert>
   <update id="updateBatch">
     <foreach collection="list" separator=";" item="data">
-      update t_prepayment set end_time = #{data.startTime} where k_code = #{data.customerId}
+      update t_prepayment set end_time = #{data.startTime} where code = #{data.customerId}
     </foreach>
   </update>
   <delete id="updateEndTime">
-    update t_prepayment set end_time = #{endTime} where k_code = #{code} and end_time = '2999-12-31'
+    update t_prepayment set end_time = #{endTime} where code = #{code} and end_time = '2999-12-31'
   </delete>
 </mapper>

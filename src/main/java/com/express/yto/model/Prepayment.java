@@ -31,8 +31,8 @@ public class Prepayment {
     /**
      * 客户K码
      */
-    @TableField(value = "k_code")
-    private String kCode;
+    @TableField(value = "code")
+    private String code;
 
     /**
      * 预付款
@@ -54,7 +54,7 @@ public class Prepayment {
 
     public static final String COL_ID = "id";
 
-    public static final String COL_K_CODE = "k_code";
+    public static final String COL_CODE = "code";
 
     public static final String COL_PRE_FEE = "pre_fee";
 

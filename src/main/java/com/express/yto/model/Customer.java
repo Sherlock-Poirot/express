@@ -29,14 +29,14 @@ public class Customer {
     /**
      * 客户名称
      */
-    @TableField(value = "k_name")
-    private String kName;
+    @TableField(value = "cust_name")
+    private String custName;
 
     /**
      * 客户K码
      */
-    @TableField(value = "k_code")
-    private String kCode;
+    @TableField(value = "code")
+    private String code;
 
     /**
      * 海南是否三区

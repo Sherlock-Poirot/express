@@ -84,10 +84,10 @@ public class MainTest {
                                 dto.setEmployeeName(value);
                                 break;
                             case "kCode":
-                                dto.setKCode(value);
+                                dto.setCode(value);
                                 break;
                             case "kName":
-                                dto.setKName(value);
+                                dto.setName(value);
                                 break;
                             case "shopId":
                                 dto.setShopId(value);

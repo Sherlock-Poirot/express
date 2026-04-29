@@ -11,5 +11,5 @@ public class ExportCustomerFeeInput {
 
     private String exportPath;
 
-    private String kCode;
+    private String code;
 }

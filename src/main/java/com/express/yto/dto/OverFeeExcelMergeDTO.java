@@ -21,11 +21,11 @@ import lombok.Data;
 public class OverFeeExcelMergeDTO {
 
     @ExcelIgnore
-    private String kCode;
+    private String code;
 
 //    @ContentLoopMerge(eachRow = 5)
     @ExcelProperty("客户名称")
-    private String kName;
+    private String name;
 
 //    @ContentLoopMerge(eachRow = 5)
     @ExcelProperty("开始时间")

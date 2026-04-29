@@ -55,43 +55,4 @@ public class DynamicExcelExporter {
         }
     }
 
-    // 测试方法
-    public static void main(String[] args) {
-        // 场景1：导出4个字段
-        Map<String, String> headers4 = new HashMap<>();
-        headers4.put("name", "姓名");
-        headers4.put("age", "年龄");
-        headers4.put("gender", "性别");
-        headers4.put("email", "邮箱");
-
-        // 场景2：导出5个字段（不同表头名称）
-        Map<String, String> headers5 = new HashMap<>();
-        headers5.put("name", "客户姓名");
-        headers5.put("age", "客户年龄");
-        headers5.put("gender", "客户性别");
-        headers5.put("email", "联系邮箱");
-        headers5.put("phone", "联系电话");
-
-        // 模拟数据
-        List<Map<String, Object>> dataList = new ArrayList<>();
-        Map<String, Object> data1 = new HashMap<>();
-        data1.put("name", "张三");
-        data1.put("age", 25);
-        data1.put("gender", "男");
-        data1.put("email", "zhangsan@test.com");
-        data1.put("phone", "13800138000");
-        dataList.add(data1);
-
-        Map<String, Object> data2 = new HashMap<>();
-        data2.put("name", "李四");
-        data2.put("age", 30);
-        data2.put("gender", "女");
-        data2.put("email", "lisi@test.com");
-        data2.put("phone", "13900139000");
-        dataList.add(data2);
-
-        // 导出测试
-        export("/Users/detective/Desktop/export/dynamic_4_fields.xlsx", headers4, dataList);
-        export("/Users/detective/Desktop/export/dynamic_5_fields.xlsx", headers5, dataList);
-    }
 }

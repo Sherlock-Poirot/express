@@ -19,7 +19,7 @@ public class PrepayListener extends AnalysisEventListener<PrepayExcelDTO> {
 
     @Override
     public void invoke(PrepayExcelDTO data, AnalysisContext context) {
-        if (data.getKCode() == null || data.getKCode().trim().isEmpty()) {
+        if (data.getCode() == null || data.getCode().trim().isEmpty()) {
             throw new IllegalArgumentException("第" + context.readRowHolder().getRowIndex() + "行客户ID为不合法");
         }
         if (data.getPreFee() == null) {

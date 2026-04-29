@@ -78,45 +78,45 @@ public class FixedFeeServiceImpl extends ServiceImpl<FixedFeeMapper, FixedFee> i
 
     @Override
     public void exportSingle(ExportCustomerFeeInput input) {
-        String kCode = input.getKCode();
+        String kCode = input.getCode();
 
         // 客户信息
         QueryWrapper<Customer> cqWrapper = new QueryWrapper<>();
-        cqWrapper.eq("k_code", kCode);
+        cqWrapper.eq("code", kCode);
         Customer customer = customerService.getOne(cqWrapper);
 
         // 预付款
         QueryWrapper<Prepayment> pqWrapper = new QueryWrapper<>();
-        pqWrapper.eq("k_code", kCode);
+        pqWrapper.eq("code", kCode);
         List<Prepayment> prepaymentList = prepaymentService.list(pqWrapper);
 
         List<PrePaymentExcelDTO> preExcelList = new ArrayList<>(prepaymentList.size());
         for (Prepayment prepayment : prepaymentList) {
             PrePaymentExcelDTO dto = new PrePaymentExcelDTO();
             BeanUtils.copyProperties(prepayment, dto);
-            dto.setKName(customer.getKName());
+            dto.setName(customer.getCustName());
             preExcelList.add(dto);
         }
 
         // 固定重量区间价格
         QueryWrapper<FixedFee> fixWrapper = new QueryWrapper<>();
-        fixWrapper.eq("k_code", kCode);
+        fixWrapper.eq("code", kCode);
         List<FixedFee> fixedFeeList = fixedFeeService.list(fixWrapper);
 
         // 续重费用
         QueryWrapper<OverFee> overWrapper = new QueryWrapper<>();
-        overWrapper.eq("k_code", kCode);
+        overWrapper.eq("code", kCode);
         List<OverFee> overFeeList = overFeeService.list(overWrapper);
 
         // 地区加收
         QueryWrapper<ExtraFee> eqWrapper = new QueryWrapper<>();
-        eqWrapper.eq("k_code", kCode);
+        eqWrapper.eq("code", kCode);
         List<ExtraFee> extraFeeList = extraFeeService.list(eqWrapper);
 
         List<ExtraFeeExcelDTO> extraFeeExcelList = new ArrayList<>(extraFeeList.size());
         for (ExtraFee extraFee : extraFeeList) {
             ExtraFeeExcelDTO dto = new ExtraFeeExcelDTO();
-            dto.setKName(customer.getKName());
+            dto.setName(customer.getCustName());
             BeanUtils.copyProperties(extraFee, dto);
             extraFeeExcelList.add(dto);
         }
@@ -124,7 +124,7 @@ public class FixedFeeServiceImpl extends ServiceImpl<FixedFeeMapper, FixedFee> i
         int count = 0;
         try (OutputStream out = new FileOutputStream(input.getExportPath())) {
             ExcelWriter excelWriter = EasyExcel.write(out).build();
-            WriteSheet sheet = EasyExcel.writerSheet(customer.getKName()).needHead(false).build();
+            WriteSheet sheet = EasyExcel.writerSheet(customer.getCustName()).needHead(false).build();
             WriteTable writeTable0 = EasyExcel.writerTable(0).needHead(Boolean.TRUE).head(PrePaymentExcelDTO.class).build();
             WriteTable writeTable1 = EasyExcel.writerTable(1).needHead(Boolean.TRUE).head(ExtraFeeExcelDTO.class).build();
             excelWriter.write(preExcelList, sheet, writeTable0);
@@ -139,7 +139,7 @@ public class FixedFeeServiceImpl extends ServiceImpl<FixedFeeMapper, FixedFee> i
     private List<FixedFee> buildModels(FixedFeeInsertInput input) {
         List<FixedFee> models = new ArrayList<>();
         for (Integer area : input.getAreas()) {
-            FixedFee model = FixedFee.builder().kCode(input.getKCode()).area(area).weight(input.getWeight())
+            FixedFee model = FixedFee.builder().code(input.getCode()).area(area).weight(input.getWeight())
                     .fee(input.getFee()).startTime(input.getStartTime()).endTime(input.getEndTime()).build();
             models.add(model);
         }

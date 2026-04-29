@@ -1,5 +1,6 @@
 package com.express.yto.dto;
 
+import com.express.yto.model.Area;
 import com.express.yto.model.Customer;
 import java.util.List;
 import lombok.Data;

@@ -14,9 +14,9 @@ import lombok.Data;
 @Data
 public class CustomerAllPriceDTO {
 
-    private String kCode;
+    private String code;
 
-    private String kName;
+    private String name;
 
     private List<ExtraFee> extraFeeList;
 

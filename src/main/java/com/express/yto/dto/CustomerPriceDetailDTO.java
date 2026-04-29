@@ -1,5 +1,6 @@
 package com.express.yto.dto;
 
+import com.express.yto.model.Area;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -31,4 +32,5 @@ public class CustomerPriceDetailDTO {
 
     private List<PriceDetailDTO> detail;
 
+    List<Area> areas;
 }

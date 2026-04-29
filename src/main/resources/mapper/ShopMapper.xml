@@ -5,13 +5,13 @@
     <!--@mbg.generated-->
     <!--@Table t_shop-->
     <id column="id" jdbcType="BIGINT" property="id" />
-    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
+    <result column="code" jdbcType="VARCHAR" property="code" />
     <result column="shop_id" jdbcType="VARCHAR" property="shopId" />
     <result column="shop_name" jdbcType="VARCHAR" property="shopName" />
     <result column="platform" jdbcType="VARCHAR" property="platform" />
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_code, shop_id, shop_name, platform
+    id, code, shop_id, shop_name, platform
   </sql>
 </mapper>

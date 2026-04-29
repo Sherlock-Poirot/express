@@ -30,8 +30,8 @@ public class FixedFee {
     /**
      * 客户K码
      */
-    @TableField(value = "k_code")
-    private String kCode;
+    @TableField(value = "code")
+    private String code;
 
     /**
      * 地区 1，2，3，4，5区

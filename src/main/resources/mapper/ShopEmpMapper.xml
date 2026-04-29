@@ -5,8 +5,8 @@
     <!--@mbg.generated-->
     <!--@Table t_shop_emp-->
     <id column="id" jdbcType="BIGINT" property="id" />
-    <result column="k_code" jdbcType="VARCHAR" property="kCode" />
-    <result column="k_name" jdbcType="VARCHAR" property="kName" />
+    <result column="code" jdbcType="VARCHAR" property="code" />
+    <result column="cust_name" jdbcType="VARCHAR" property="custName" />
     <result column="shop_id" jdbcType="VARCHAR" property="shopId" />
     <result column="shop_name" jdbcType="VARCHAR" property="shopName" />
     <result column="platform" jdbcType="VARCHAR" property="platform" />
@@ -15,6 +15,6 @@
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_code, k_name, shop_id, shop_name, platform, emp_name, emp_type
+    id, code, cust_name, shop_id, shop_name, platform, emp_name, emp_type
   </sql>
 </mapper>

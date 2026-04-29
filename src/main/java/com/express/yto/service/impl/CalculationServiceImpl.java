@@ -89,12 +89,12 @@ public class CalculationServiceImpl implements CalculationService {
 
         // 3. 一次性查询所有基础数据（原逻辑保留，已最优）
         ContractShopExcelDTO firstDTO = list.get(0); // 替代stream().findFirst().get()（避免Optional开销）
-        String kCode = firstDTO.getKCode();
-        Customer customer = customerService.getOne(new QueryWrapper<Customer>().eq("k_code", kCode));
-        List<Prepayment> prepaymentList = prepaymentService.list(new QueryWrapper<Prepayment>().eq("k_code", kCode));
-        List<FixedFee> fixedFeeList = fixedFeeService.list(new QueryWrapper<FixedFee>().eq("k_code", kCode));
-        List<OverFee> overFeeList = overFeeService.list(new QueryWrapper<OverFee>().eq("k_code", kCode));
-        List<ExtraFee> extraFeeList = extraFeeService.list(new QueryWrapper<ExtraFee>().eq("k_code", kCode));
+        String kCode = firstDTO.getCode();
+        Customer customer = customerService.getOne(new QueryWrapper<Customer>().eq("code", kCode));
+        List<Prepayment> prepaymentList = prepaymentService.list(new QueryWrapper<Prepayment>().eq("code", kCode));
+        List<FixedFee> fixedFeeList = fixedFeeService.list(new QueryWrapper<FixedFee>().eq("code", kCode));
+        List<OverFee> overFeeList = overFeeService.list(new QueryWrapper<OverFee>().eq("code", kCode));
+        List<ExtraFee> extraFeeList = extraFeeService.list(new QueryWrapper<ExtraFee>().eq("code", kCode));
         List<Area> areaList = areaService.list(new QueryWrapper<Area>().eq("company_id", companyId));
 
         // 4. 预缓存：预付款（时间区间→金额）- 核心优化：避免重复过滤
@@ -260,27 +260,27 @@ public class CalculationServiceImpl implements CalculationService {
 //        String kCode = anyone.getKCode();
 //        // 客户信息
 //        QueryWrapper<Customer> cqWrapper = new QueryWrapper<>();
-//        cqWrapper.eq("k_code", kCode);
+//        cqWrapper.eq("code", kCode);
 //        Customer customer = customerService.getOne(cqWrapper);
 //
 //        // 预付款
 //        QueryWrapper<Prepayment> pqWrapper = new QueryWrapper<>();
-//        pqWrapper.eq("k_code", kCode);
+//        pqWrapper.eq("code", kCode);
 //        List<Prepayment> prepaymentList = prepaymentService.list(pqWrapper);
 //
 //        // 固定重量区间价格
 //        QueryWrapper<FixedFee> fixWrapper = new QueryWrapper<>();
-//        fixWrapper.eq("k_code", kCode);
+//        fixWrapper.eq("code", kCode);
 //        List<FixedFee> fixedFeeList = fixedFeeService.list(fixWrapper);
 //
 //        // 续重费用
 //        QueryWrapper<OverFee> overWrapper = new QueryWrapper<>();
-//        overWrapper.eq("k_code", kCode);
+//        overWrapper.eq("code", kCode);
 //        List<OverFee> overFeeList = overFeeService.list(overWrapper);
 //
 //        // 地区加收
 //        QueryWrapper<ExtraFee> eqWrapper = new QueryWrapper<>();
-//        eqWrapper.eq("k_code", kCode);
+//        eqWrapper.eq("code", kCode);
 //        List<ExtraFee> extraFeeList = extraFeeService.list(eqWrapper);
 //
 //        // 对数据的修改时间去重做一个分组方便做一个重量段的赋值  一般一个月最多改1-3次价格也就是说分组最多为3-4组
@@ -384,7 +384,7 @@ public class CalculationServiceImpl implements CalculationService {
         BigDecimal rate = BigDecimal.valueOf(fourCount)
                 .divide(BigDecimal.valueOf(exportList.size()), 3, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
-        if ("ceo南山及趣多多".contains(customer.getKName())) {
+        if ("ceo南山及趣多多".contains(customer.getCustName())) {
             rate = BigDecimal.valueOf(fourCount)
                     .divide(RuBinBinExcelHandler.count, 3, RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));

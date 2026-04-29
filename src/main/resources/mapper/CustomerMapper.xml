@@ -5,8 +5,8 @@
     <!--@mbg.generated-->
     <!--@Table t_customer-->
     <id column="id" jdbcType="BIGINT" property="id"/>
-    <result column="k_name" jdbcType="VARCHAR" property="kName"/>
-    <result column="k_code" jdbcType="VARCHAR" property="kCode"/>
+    <result column="cust_name" jdbcType="VARCHAR" property="custName"/>
+    <result column="code" jdbcType="VARCHAR" property="code"/>
     <result column="is_three" jdbcType="VARCHAR" property="threeFlag"/>
     <result column="remark" jdbcType="VARCHAR" property="remark"/>
     <result column="four_rate" jdbcType="DECIMAL" property="fourRate"/>
@@ -15,62 +15,9 @@
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, k_name, k_code, is_three, remark, four_rate, four_model, four_fee
+    id, cust_name, code, is_three, remark, four_rate, four_model, four_fee
   </sql>
 
-  <resultMap id="existMap" type="com.express.yto.dto.CustomerAllPriceDTO">
-    <id column="k_code" property="kCode"/>
-    <result column="k_name" property="kName"/>
-    <collection property="extraFeeList" javaType="com.express.yto.model.ExtraFee">
-      <result column="areaName" property="areaName"/>
-      <result column="extraFee" property="fee"/>
-    </collection>
-    <collection property="fixedFeeList" javaType="com.express.yto.model.FixedFee">
-      <result column="fixedArea" property="area"/>
-      <result column="weight" property="weight"/>
-      <result column="fixedFee" property="fee"/>
-      <result column="startTime" property="startTime"/>
-      <result column="endTime" property="endTime"/>
-    </collection>
-    <collection property="overFeeList" javaType="com.express.yto.model.OverFee">
-      <result column="overArea" property="area"/>
-      <result column="overFee" property="fee"/>
-      <result column="firstWeight" property="firstWeight"/>
-      <result column="firstFee" property="firstFee"/>
-    </collection>
-    <collection property="prepaymentList" javaType="com.express.yto.model.Prepayment">
-      <result column="preFee" property="preFee"/>
-    </collection>
-  </resultMap>
 
-  <select id="existByName" resultMap="existMap">
-    SELECT
-      t1.k_code kCode,
-      t1.k_name kName,
-      t2.area_name areaName,
-      t2.fee extraFee,
-      t3.area fixedArea,
-      t3.weight weight,
-      t3.fee fixedFee,
-      t3.start_time startTime,
-      t3.end_time endTime,
-      t4.area overArea,
-      t4.fee overFee,
-      t4.first_weight firstWeight,
-      t4.first_fee firstFee,
-      t5.pre_fee preFee
-    FROM
-      t_customer t1,
-      t_extra_fee t2,
-      t_fixed_fee t3,
-      t_over_fee t4,
-      t_prepayment t5
-      WHERE
-      t1.k_code = t2.k_code
-      AND t2.k_code = t3.k_code
-      AND t3.k_code = t4.k_code
-      AND t4.k_code = t5.k_code
-      AND t1.k_code = 'K576103527'
-  </select>
 
 </mapper>

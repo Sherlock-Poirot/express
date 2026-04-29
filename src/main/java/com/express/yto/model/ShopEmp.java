@@ -31,16 +31,16 @@ public class ShopEmp {
     /**
      * 客户K码
      */
-    @TableField(value = "k_code")
+    @TableField(value = "code")
     @ExcelProperty("客户编码")
     private String code;
 
     /**
      * 客户名称
      */
-    @TableField(value = "k_name")
+    @TableField(value = "cust_name")
     @ExcelProperty("客户名称")
-    private String name;
+    private String custName;
 
     /**
      * 店铺id
@@ -79,9 +79,9 @@ public class ShopEmp {
 
     public static final String COL_ID = "id";
 
-    public static final String COL_K_CODE = "k_code";
+    public static final String COL_CODE = "code";
 
-    public static final String COL_K_NAME = "k_name";
+    public static final String COL_CUST_NAME = "cust_name";
 
     public static final String COL_SHOP_ID = "shop_id";
 

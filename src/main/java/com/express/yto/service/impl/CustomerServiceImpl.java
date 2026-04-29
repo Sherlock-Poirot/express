@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.express.yto.dao.AreaMapper;
 import com.express.yto.dao.CustomerMapper;
 import com.express.yto.dao.ExtraFeeMapper;
 import com.express.yto.dao.FixedFeeMapper;
@@ -26,6 +27,7 @@ import com.express.yto.dto.FixedTinyDTO;
 import com.express.yto.dto.PriceDeleteInput;
 import com.express.yto.dto.PriceDetailDTO;
 import com.express.yto.exception.BusinessException;
+import com.express.yto.model.Area;
 import com.express.yto.model.Customer;
 import com.express.yto.model.ExtraFee;
 import com.express.yto.model.FixedFee;
@@ -73,6 +75,9 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Autowired
     private ShopEmpMapper shopEmpMapper;
 
+    @Autowired
+    private AreaMapper areaMapper;
+
     private static final LocalDate END_TIME = LocalDate.of(2999, 12, 31);
 
     @Override
@@ -91,7 +96,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         }).doReadAll();
         List<Customer> customers = new ArrayList<>();
         for (CustomerExcelDTO dto : list) {
-            Customer model = Customer.builder().kName(dto.getKName()).kCode(dto.getKCode())
+            Customer model = Customer.builder().custName(dto.getName()).code(dto.getCode())
                     .threeFlag(dto.getFlagHaiNan()).fourRate(dto.getFourRate()).fourModel(dto.getFourModel())
                     .fourFee(dto.getFourFee()).build();
             customers.add(model);
@@ -105,9 +110,9 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Override
     public void add(CustomerDetailDTO input) {
         QueryWrapper<Customer> qw = new QueryWrapper<>();
-        qw.eq("k_name", input.getKName());
-        if (StringUtils.isNotBlank(input.getKCode())) {
-            qw.or().eq("k_code", input.getKCode());
+        qw.eq("cust_name", input.getCustName());
+        if (StringUtils.isNotBlank(input.getCode())) {
+            qw.or().eq("code", input.getCode());
         } else {
             throw new BusinessException("客户编码不能为空");
         }
@@ -120,7 +125,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         customerMapper.insert(customer);
         List<ExtraFee> extraFees = new ArrayList<>();
         for (ExtraFeeDTO extra : input.getExtra()) {
-            extraFees.add(ExtraFee.builder().kCode(input.getKCode()).areaName(extra.getAreaName()).fee(extra.getFee())
+            extraFees.add(ExtraFee.builder().code(input.getCode()).areaName(extra.getAreaName()).fee(extra.getFee())
                     .build());
         }
         extraFeeMapper.insert(extraFees);
@@ -131,22 +136,22 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     public void delete(List<Long> ids) {
         // 获取店铺表，价格表，全都进行删除
         List<Customer> customers = customerMapper.selectBatchIds(ids);
-        List<String> codeList = customers.stream().map(Customer::getKCode).collect(Collectors.toList());
+        List<String> codeList = customers.stream().map(Customer::getCode).collect(Collectors.toList());
         // 删除固定重量价格表
         QueryWrapper<FixedFee> fixedQw = new QueryWrapper<>();
-        fixedQw.in("k_code", codeList);
+        fixedQw.in("code", codeList);
         fixedFeeMapper.delete(fixedQw);
         // 删除续重费用表
         QueryWrapper<OverFee> overQw = new QueryWrapper<>();
-        overQw.in("k_code", codeList);
+        overQw.in("code", codeList);
         overFeeMapper.delete(overQw);
         // 删除预付款表
         QueryWrapper<Prepayment> preQw = new QueryWrapper<>();
-        preQw.in("k_code", codeList);
+        preQw.in("code", codeList);
         prepaymentMapper.delete(preQw);
         // 删除店铺表
         QueryWrapper<ShopEmp> shopQw = new QueryWrapper<>();
-        shopQw.in("k_code", codeList);
+        shopQw.in("code", codeList);
         shopEmpMapper.delete(shopQw);
         customerMapper.deleteByIds(ids);
     }
@@ -156,11 +161,11 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         Page<Customer> page = new Page<>(input.getPageNo(), input.getPageSize());
         QueryWrapper<Customer> qw = new QueryWrapper<>();
         qw.orderByDesc("id");
-        if (StringUtils.isNotBlank(input.getkName())) {
-            qw.like("k_name", input.getkName());
+        if (StringUtils.isNotBlank(input.getName())) {
+            qw.like("cust_name", input.getName());
         }
-        if (StringUtils.isNotBlank(input.getkCode())) {
-            qw.eq("k_code", input.getkCode());
+        if (StringUtils.isNotBlank(input.getCode())) {
+            qw.eq("code", input.getCode());
         }
 
         return customerMapper.selectPage(page, qw);
@@ -169,36 +174,49 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Override
     public List<CustomerPriceDetailDTO> getPrice(String kCode) {
         Map<String, Object> map = new HashMap<>(2);
-        map.put("k_code", kCode);
+        map.put("code", kCode);
         List<FixedFee> fixedList = fixedFeeMapper.selectByMap(map);
         List<OverFee> overList = overFeeMapper.selectByMap(map);
         List<Prepayment> prepaymentList = prepaymentMapper.selectByMap(map);
         List<ExtraFee> extraFeeList = extraFeeMapper.selectByMap(map);
         QueryWrapper<Customer> qw = new QueryWrapper<>();
-        qw.eq("k_code", kCode);
+        qw.eq("code", kCode);
         Customer customer = customerMapper.selectOne(qw);
 
         List<CustomerPriceDetailDTO> result = combine(fixedList, overList, prepaymentList);
         result.sort(Comparator.comparing(CustomerPriceDetailDTO::getEndTime).reversed());
         result.forEach(e -> {
             e.setRemark(buildRemark(customer, extraFeeList));
-            e.setName(customer.getKName());
-            e.setCode(customer.getKCode());
+            e.setName(customer.getCustName());
+            e.setCode(customer.getCode());
         });
+        QueryWrapper<Area> areaQw = new QueryWrapper<>();
+        List<Area> areaList = areaMapper.selectList(areaQw);
+        for (Area area : areaList) {
+            if (customer.getThreeFlag()) {
+                if (area.getAreaNum().equals(3)) {
+                    area.setAreaCity(area.getAreaCity() + "、海南省");
+                }
+                if (area.getAreaNum().equals(4)) {
+                    area.setAreaCity(area.getAreaCity().replaceAll("、海南省", ""));
+                }
+            }
+        }
+        result.forEach(e -> e.setAreas(areaList));
         return result;
     }
 
     @Override
     public void deletePrice(PriceDeleteInput input) {
         Map<String, Object> queryMap = new HashMap<>(4);
-        queryMap.put("k_code", input.getCode());
+        queryMap.put("code", input.getCode());
         queryMap.put("start_time", input.getStartTime());
         queryMap.put("end_time", input.getEndTime());
         List<FixedFee> fixedList = fixedFeeMapper.selectByMap(queryMap);
         List<OverFee> overList = overFeeMapper.selectByMap(queryMap);
         List<Prepayment> prepaymentList = prepaymentMapper.selectByMap(queryMap);
         queryMap.clear();
-        queryMap.put("k_code", input.getCode());
+        queryMap.put("code", input.getCode());
         List<ExtraFee> extraFeeList = extraFeeMapper.selectByMap(queryMap);
         if (deletePriceJudge(fixedList, overList, prepaymentList, extraFeeList)) {
             throw new BusinessException("该时间段没有价格表，请检查时间区间的正确性");
@@ -225,7 +243,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         // 客户预付款
         Prepayment prepayment = new Prepayment();
         prepayment.setEndTime(END_TIME);
-        prepayment.setKCode(code);
+        prepayment.setCode(code);
         prepayment.setStartTime(startTime);
         prepayment.setPreFee(input.get(0).getPrepayment());
         prepaymentMapper.insert(prepayment);
@@ -237,7 +255,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             overFee.setEndTime(END_TIME);
             overFee.setFirstWeight(BigDecimal.ONE);
             overFee.setStartTime(startTime);
-            overFee.setKCode(code);
+            overFee.setCode(code);
             overFee.setArea(dto.getArea());
             overFee.setFee(dto.getOverFee());
             overFee.setFirstFee(dto.getFirstFee());
@@ -245,7 +263,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             for (FixedTinyDTO fixed : dto.getFixedList()) {
                 FixedFee fixedFee = new FixedFee();
                 fixedFee.setEndTime(END_TIME);
-                fixedFee.setKCode(code);
+                fixedFee.setCode(code);
                 fixedFee.setArea(dto.getArea());
                 fixedFee.setStartTime(startTime);
                 fixedFee.setWeight(fixed.getWeight());
@@ -264,10 +282,10 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Override
     public CustomerDetailDTO getDetail(String code) {
         QueryWrapper<Customer> qw = new QueryWrapper<>();
-        qw.eq("k_code", code);
+        qw.eq("code", code);
         Customer customer = customerMapper.selectOne(qw);
         QueryWrapper<ExtraFee> extraQw = new QueryWrapper<>();
-        extraQw.eq("k_code", code);
+        extraQw.eq("code", code);
         List<ExtraFee> list = extraFeeMapper.selectList(extraQw);
         CustomerDetailDTO result = new CustomerDetailDTO();
         BeanUtils.copyProperties(customer, result);
@@ -285,13 +303,13 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         Customer customer = new Customer();
         BeanUtils.copyProperties(input, customer);
         customerMapper.updateById(customer);
-        String code = input.getKCode();
+        String code = input.getCode();
         QueryWrapper<ExtraFee> qw = new QueryWrapper<>();
-        qw.eq("k_code", code);
+        qw.eq("code", code);
         extraFeeMapper.delete(qw);
         List<ExtraFee> list = new ArrayList<>();
         for (ExtraFeeDTO extra : input.getExtra()) {
-            list.add(ExtraFee.builder().kCode(code).areaName(extra.getAreaName()).fee(extra.getFee()).build());
+            list.add(ExtraFee.builder().code(code).areaName(extra.getAreaName()).fee(extra.getFee()).build());
         }
         extraFeeMapper.insert(list);
     }

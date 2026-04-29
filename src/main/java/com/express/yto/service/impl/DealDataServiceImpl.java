@@ -104,7 +104,7 @@ public class DealDataServiceImpl implements DealDataService {
             if (springFestival) {
                 // 春节加收
                 for (ContractShopExcelDTO dto : exportList) {
-                    if (StringUtils.isBlank(dto.getKName())) {
+                    if (StringUtils.isBlank(dto.getName())) {
                         continue;
                     }
                     BigDecimal expense = dto.getExpense();
@@ -112,7 +112,7 @@ public class DealDataServiceImpl implements DealDataService {
                     LocalDate s1 = LocalDate.of(2026, 2, 9);
                     LocalDate e1 = LocalDate.of(2026, 2, 23);
 
-                    if ("郑红志，张宁".contains(dto.getKName())) {
+                    if ("郑红志，张宁".contains(dto.getName())) {
                         if (dto.getScanDate().isAfter(s1) && dto.getScanDate().isBefore(e1)) {
                             expense = expense.add(BigDecimal.valueOf(3));
                             if (dto.getOverFlag()) {
@@ -132,7 +132,7 @@ public class DealDataServiceImpl implements DealDataService {
                             expense = expense.add(dto.getWeight().setScale(0, RoundingMode.CEILING)
                                     .subtract(BigDecimal.ONE));
                         }
-                        if (!FOLD_BILL_CUSTOMER.contains(dto.getKName())) {
+                        if (!FOLD_BILL_CUSTOMER.contains(dto.getName())) {
                             // 非折单客户加2元
                             expense = expense.add(BigDecimal.valueOf(2));
                         }
@@ -172,7 +172,7 @@ public class DealDataServiceImpl implements DealDataService {
 
                 }
             }).doReadAll();
-            List<String> codes = list.stream().map(ContractShopExcelDTO::getKCode).distinct()
+            List<String> codes = list.stream().map(ContractShopExcelDTO::getCode).distinct()
                     .collect(Collectors.toList());
             fileName = fileName.replaceAll("1月", "");
             fileName = fileName.replaceAll("2月", "");
@@ -188,13 +188,13 @@ public class DealDataServiceImpl implements DealDataService {
             fileName = fileName.replaceAll("12月", "");
             fileName = fileName.replaceAll(".xlsx", "");
             QueryWrapper<Customer> cqw = new QueryWrapper<>();
-            cqw.eq("k_name", fileName);
+            cqw.eq("cust_name", fileName);
             Customer customer = customerMapper.selectOne(cqw);
-            if (customer != null && StringUtils.isNotBlank(customer.getKCode())) {
-                String kCode = customer.getKCode();
+            if (customer != null && StringUtils.isNotBlank(customer.getCode())) {
+                String kCode = customer.getCode();
                 // 预付款
                 QueryWrapper<Prepayment> pqWrapper = new QueryWrapper<>();
-                pqWrapper.eq("k_code", kCode);
+                pqWrapper.eq("code", kCode);
                 List<Prepayment> prepaymentList = prepaymentMapper.selectList(pqWrapper);
 
                 if (CollectionUtils.isEmpty(prepaymentList)) {
@@ -203,7 +203,7 @@ public class DealDataServiceImpl implements DealDataService {
 
                 // 固定重量区间价格
                 QueryWrapper<FixedFee> fixWrapper = new QueryWrapper<>();
-                fixWrapper.eq("k_code", kCode);
+                fixWrapper.eq("code", kCode);
                 List<FixedFee> fixedFeeList = fixedFeeMapper.selectList(fixWrapper);
                 if (CollectionUtils.isEmpty(fixedFeeList)) {
                     log.info("{},缺少固定重量区间价格请检查", fileName);
@@ -211,7 +211,7 @@ public class DealDataServiceImpl implements DealDataService {
 
                 // 续重费用
                 QueryWrapper<OverFee> overWrapper = new QueryWrapper<>();
-                overWrapper.eq("k_code", kCode);
+                overWrapper.eq("code", kCode);
                 List<OverFee> overFeeList = overFeeMapper.selectList(overWrapper);
                 if (CollectionUtils.isEmpty(overFeeList)) {
                     log.info("{},缺少续重价格请检查", fileName);
@@ -219,14 +219,14 @@ public class DealDataServiceImpl implements DealDataService {
 
                 // 地区加收
                 QueryWrapper<ExtraFee> eqWrapper = new QueryWrapper<>();
-                eqWrapper.eq("k_code", kCode);
+                eqWrapper.eq("code", kCode);
                 List<ExtraFee> extraFeeList = extraFeeMapper.selectList(eqWrapper);
                 if (CollectionUtils.isEmpty(extraFeeList)) {
                     log.info("{},缺少地区加收请检查", fileName);
                 }
 
                 if (codes.size() > 1) {
-                    log.info("{},存在两个以上K码,数据库K码为：{}", fileName, customer.getKCode());
+                    log.info("{},存在两个以上K码,数据库K码为：{}", fileName, customer.getCode());
                 }
             } else {
                 log.info("{},不存在客户表", fileName);
@@ -301,7 +301,7 @@ public class DealDataServiceImpl implements DealDataService {
                 }
             }).sheet().doRead();
             QueryWrapper<Customer> wrapper = new QueryWrapper<>();
-            wrapper.eq("k_name", fileName.replaceAll(".xlsx", ""));
+            wrapper.eq("cust_name", fileName.replaceAll(".xlsx", ""));
             boolean haiNan = customerMapper.selectOne(wrapper).getThreeFlag();
             int count;
             if (haiNan) {
@@ -312,7 +312,7 @@ public class DealDataServiceImpl implements DealDataService {
             String rate = BigDecimal.valueOf(count).divide(BigDecimal.valueOf(list.size()), 5, RoundingMode.CEILING)
                     .multiply(BigDecimal.valueOf(100)).toString();
             rate = rate.substring(0, rate.length() - 2) + "%";
-            FourRateExcelDTO dto = FourRateExcelDTO.builder().kName(fileName.replaceAll(".xlsx", ""))
+            FourRateExcelDTO dto = FourRateExcelDTO.builder().name(fileName.replaceAll(".xlsx", ""))
                     .amount(BigDecimal.valueOf(list.size()))
                     .fourCount(BigDecimal.valueOf(count)).fourRate(rate).build();
             export.add(dto);
@@ -335,7 +335,7 @@ public class DealDataServiceImpl implements DealDataService {
                 continue;
             }
             ContractShopExcelDTO data = ContractShopExcelDTO.builder()
-                    .kName(fileName.replaceAll("[\\d月]", "").replaceAll(".xlsx", "")).build();
+                    .name(fileName.replaceAll("[\\d月]", "").replaceAll(".xlsx", "")).build();
             String filePath = readPath + "/" + fileName;
             System.out.println("filePath:" + filePath);
             List<String> list = new ArrayList<>();
@@ -354,7 +354,7 @@ public class DealDataServiceImpl implements DealDataService {
                 }
             }).sheet().doRead();
             BillCompileDTO dto = new BillCompileDTO();
-            dto.setName(data.getKName());
+            dto.setName(data.getName());
             dto.setCount(data.getExpense());
             dto.setAmount(list.size());
             result.add(dto);

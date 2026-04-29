@@ -44,22 +44,22 @@ public class ExtraFeeServiceImpl extends ServiceImpl<ExtraFeeMapper, ExtraFee> i
         for (AreaExtraFeeExcelDTO dto : list) {
             if (null != dto.getBeijing()){
                 // 北京
-                ExtraFee model = ExtraFee.builder().kCode(dto.getKCode()).areaName("北京").fee(dto.getBeijing()).build();
+                ExtraFee model = ExtraFee.builder().code(dto.getCode()).areaName("北京").fee(dto.getBeijing()).build();
                 models.add(model);
             }
             if (null != dto.getShanghai()){
                 // 上海
-                ExtraFee model = ExtraFee.builder().kCode(dto.getKCode()).areaName("上海").fee(dto.getShanghai()).build();
+                ExtraFee model = ExtraFee.builder().code(dto.getCode()).areaName("上海").fee(dto.getShanghai()).build();
                 models.add(model);
             }
             if (null != dto.getShenzhen()){
                 // 深圳
-                ExtraFee model = ExtraFee.builder().kCode(dto.getKCode()).areaName("深圳").fee(dto.getShenzhen()).build();
+                ExtraFee model = ExtraFee.builder().code(dto.getCode()).areaName("深圳").fee(dto.getShenzhen()).build();
                 models.add(model);
             }
             if (null != dto.getZhoushan()){
                 // 深圳
-                ExtraFee model = ExtraFee.builder().kCode(dto.getKCode()).areaName("舟山").fee(dto.getShenzhen()).build();
+                ExtraFee model = ExtraFee.builder().code(dto.getCode()).areaName("舟山").fee(dto.getShenzhen()).build();
                 models.add(model);
             }
         }

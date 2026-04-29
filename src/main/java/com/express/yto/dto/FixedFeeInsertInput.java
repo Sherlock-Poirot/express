@@ -19,7 +19,7 @@ public class FixedFeeInsertInput {
      * 客户编码
      */
     @ApiModelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     /**
      * 区域集合

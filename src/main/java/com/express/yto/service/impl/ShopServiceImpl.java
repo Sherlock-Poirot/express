@@ -37,10 +37,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         Page<ShopEmp> page = new Page<>(pageNo, pageSize);
         QueryWrapper<ShopEmp> qw = new QueryWrapper<>();
         if (StringUtils.isNotBlank(code)) {
-            qw.eq("k_code", code);
+            qw.eq("code", code);
         }
         if (StringUtils.isNotBlank(name)) {
-            qw.like("k_name", name);
+            qw.like("cust_name", name);
         }
         if (StringUtils.isNotBlank(empName)) {
             qw.like("emp_name", empName);

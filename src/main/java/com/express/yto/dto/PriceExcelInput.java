@@ -12,5 +12,5 @@ public class PriceExcelInput {
 
     private String exportPath;
 
-    private List<String> kCodeList;
+    private List<String> codeList;
 }

@@ -72,19 +72,19 @@ public class OverFeeServiceImpl extends ServiceImpl<OverFeeMapper, OverFee> impl
         List<OverFee> models = new ArrayList<>(list.size());
         List<Prepayment> prepaymentList = new ArrayList<>(list.size());
         for (OverFeeExcelDTO dto : list) {
-            OverFee over_1 = OverFee.builder().kCode(dto.getKCode()).area(1).fee(dto.getAreaOneExtraFee())
+            OverFee over_1 = OverFee.builder().code(dto.getCode()).area(1).fee(dto.getAreaOneExtraFee())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).firstWeight(
                             BigDecimal.ONE).firstFee(dto.getAreaOneFee()).build();
-            OverFee over_2 = OverFee.builder().kCode(dto.getKCode()).area(2).fee(dto.getAreaTwoExtraFee())
+            OverFee over_2 = OverFee.builder().code(dto.getCode()).area(2).fee(dto.getAreaTwoExtraFee())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).firstWeight(
                             BigDecimal.ONE).firstFee(dto.getAreaTwoFee()).build();
-            OverFee over_3 = OverFee.builder().kCode(dto.getKCode()).area(3).fee(dto.getAreaThreeExtraFee())
+            OverFee over_3 = OverFee.builder().code(dto.getCode()).area(3).fee(dto.getAreaThreeExtraFee())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).firstWeight(
                             BigDecimal.ONE).firstFee(dto.getAreaThreeFee()).build();
-            OverFee over_4 = OverFee.builder().kCode(dto.getKCode()).area(4).fee(dto.getAreaFourExtraFee())
+            OverFee over_4 = OverFee.builder().code(dto.getCode()).area(4).fee(dto.getAreaFourExtraFee())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).firstWeight(
                             BigDecimal.ONE).firstFee(dto.getAreaFourFee()).build();
-            OverFee over_5 = OverFee.builder().kCode(dto.getKCode()).area(5).fee(dto.getAreaFiveExtraFee())
+            OverFee over_5 = OverFee.builder().code(dto.getCode()).area(5).fee(dto.getAreaFiveExtraFee())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).firstWeight(
                             BigDecimal.ONE).firstFee(dto.getAreaFiveFee()).build();
             models.add(over_1);
@@ -92,7 +92,7 @@ public class OverFeeServiceImpl extends ServiceImpl<OverFeeMapper, OverFee> impl
             models.add(over_3);
             models.add(over_4);
             models.add(over_5);
-            Prepayment prepayment = Prepayment.builder().kCode(dto.getKCode()).preFee(dto.getPrePayment())
+            Prepayment prepayment = Prepayment.builder().code(dto.getCode()).preFee(dto.getPrePayment())
                     .startTime(dto.getStartTime()).endTime(dto.getEndTime()).build();
             prepaymentList.add(prepayment);
         }
@@ -107,16 +107,15 @@ public class OverFeeServiceImpl extends ServiceImpl<OverFeeMapper, OverFee> impl
         // TODO 组建对应的表头
         QueryWrapper<FixedFee> qw = new QueryWrapper<>();
         List<FixedFee> fixedFeeList = fixedFeeMapper.selectList(qw);
-        Map<String, List<FixedFee>> fixedMap = fixedFeeList.stream().collect(Collectors.groupingBy(FixedFee::getKCode));
-        List<OverFeeExcelMergeDTO> exportList = overFeeMapper.getExcelByCode(input.getKCodeList());
-//        List<String> kNameList = exportList.stream().map(OverFeeExcelMergeDTO::getKName).distinct()
-//                .collect(Collectors.toList());
+        Map<String, List<FixedFee>> fixedMap = fixedFeeList.stream().collect(Collectors.groupingBy(FixedFee::getCode));
+//        List<OverFeeExcelMergeDTO> exportList = overFeeMapper.getExcelByCode(input.getCodeList());
+        List<OverFeeExcelMergeDTO> exportList = new ArrayList<>();
         Map<String, List<OverFeeExcelMergeDTO>> map = exportList.stream()
-                .collect(Collectors.groupingBy(OverFeeExcelMergeDTO::getKCode));
+                .collect(Collectors.groupingBy(OverFeeExcelMergeDTO::getCode));
         Map<String, String> nameMap = exportList.stream()
                 .collect(Collectors.toMap(
-                        OverFeeExcelMergeDTO::getKCode,
-                        OverFeeExcelMergeDTO::getKName,
+                        OverFeeExcelMergeDTO::getCode,
+                        OverFeeExcelMergeDTO::getName,
                         (existingValue, newValue) -> existingValue  // 重复key时保留第一个值
                         // (existingValue, newValue) -> newValue  // 重复key时保留最后一个值
                 ));

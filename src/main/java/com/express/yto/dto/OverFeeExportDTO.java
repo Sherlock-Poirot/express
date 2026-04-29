@@ -11,9 +11,9 @@ import lombok.Data;
 @Data
 public class OverFeeExportDTO {
 
-    private String kCode;
+    private String code;
 
-    private String kName;
+    private String name;
 
     private List<OverFeeMiniDTO> overFeeList;
 }

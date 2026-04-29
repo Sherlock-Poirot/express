@@ -17,13 +17,13 @@ public class PrePaymentExcelDTO {
      * 客户K码
      */
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     /**
      * 客户名称
      */
     @ExcelProperty("客户名称")
-    private String kName;
+    private String name;
 
     /**
      * 预付款

@@ -12,7 +12,7 @@ import lombok.Data;
 public class AreaExtraFeeExcelDTO {
 
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("北京")
     private BigDecimal beijing;

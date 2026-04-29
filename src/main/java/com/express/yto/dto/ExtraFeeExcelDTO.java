@@ -13,10 +13,10 @@ import lombok.Data;
 public class ExtraFeeExcelDTO {
 
     @ExcelProperty(value = "客户编码")
-    private String kCode;
+    private String code;
 
     @ExcelProperty(value = "客户名称")
-    private String kName;
+    private String name;
 
     @ExcelProperty(value = "地域名称")
     private String areaName;

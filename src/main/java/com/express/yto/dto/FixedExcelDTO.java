@@ -13,7 +13,7 @@ import lombok.Data;
 public class FixedExcelDTO {
 
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("区域")
     private Integer area;

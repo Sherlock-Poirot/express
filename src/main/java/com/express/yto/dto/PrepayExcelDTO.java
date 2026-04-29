@@ -13,7 +13,7 @@ import lombok.Data;
 public class PrepayExcelDTO {
 
     @ExcelProperty("客户编码")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("价格")
     private BigDecimal preFee;

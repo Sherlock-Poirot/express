@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 public class FourRateExcelDTO {
 
     @ExcelProperty("客户")
-    private String kName;
+    private String name;
 
     @ExcelProperty("总票数")
     private BigDecimal amount;

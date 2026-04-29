@@ -39,10 +39,10 @@ public class ContractShopExcelDTO {
     private String employeeName;
 
     @ExcelProperty("物料发放客户")
-    private String kCode;
+    private String code;
 
     @ExcelProperty("物料发放客户名称")
-    private String kName;
+    private String name;
 
     @ExcelProperty("物料结算编码")
     private String shopId;
