@@ -17,7 +17,17 @@
     <!--@mbg.generated-->
     id, cust_name, code, is_three, remark, four_rate, four_model, four_fee
   </sql>
-
+  <select id="getCustomerNameAndCode" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
+    SELECT
+        cust_name AS customerName,
+        code AS customerCode
+    FROM
+        t_customer
+    GROUP BY
+        cust_name, code
+    ORDER BY
+        cust_name
+  </select>
 
 
 </mapper>

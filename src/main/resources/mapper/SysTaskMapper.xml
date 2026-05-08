@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.SysTaskMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.SysTask">
+    <!--@mbg.generated-->
+    <!--@Table sys_task-->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="task_no" jdbcType="VARCHAR" property="taskNo" />
+    <result column="task_type" jdbcType="VARCHAR" property="taskType" />
+    <result column="status" jdbcType="VARCHAR" property="status" />
+    <result column="total" jdbcType="INTEGER" property="total" />
+    <result column="message" jdbcType="VARCHAR" property="message" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, task_no, task_type, `status`, total, message, create_time, update_time
+  </sql>
+</mapper>

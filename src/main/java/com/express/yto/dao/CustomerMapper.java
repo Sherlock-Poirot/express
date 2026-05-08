@@ -2,7 +2,9 @@ package com.express.yto.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.express.yto.dto.CustomerAllPriceDTO;
+import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.model.Customer;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -13,6 +15,5 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface CustomerMapper extends BaseMapper<Customer> {
 
-    CustomerAllPriceDTO existByName(@Param("kName") String fileName);
-
+    List<CustomerCodeAndNameDTO> getCustomerNameAndCode();
 }

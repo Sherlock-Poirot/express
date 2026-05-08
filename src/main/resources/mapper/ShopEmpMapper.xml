@@ -17,4 +17,28 @@
     <!--@mbg.generated-->
     id, code, cust_name, shop_id, shop_name, platform, emp_name, emp_type
   </sql>
+  <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
+    SELECT
+      shop_name AS shopName,
+      cust_name AS customerName
+    FROM
+      t_shop_emp
+    GROUP BY
+      shop_name,
+      cust_name
+      ORDER BY
+      cust_name,shop_name
+  </select>
+  <select id="getEmpInfo" resultType="com.express.yto.dto.EmpBillInfoDTO">
+    SELECT
+      cust_name AS customerName,
+      emp_name AS empName,
+      emp_type AS empType
+    FROM
+        t_shop_emp
+    WHERE
+        emp_name IS NOT NULL
+    AND emp_name &lt;> ''
+    GROUP BY cust_name,emp_name,emp_type
+  </select>
 </mapper>

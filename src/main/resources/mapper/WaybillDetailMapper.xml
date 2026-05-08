@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.WaybillDetailMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.WaybillDetail">
+    <!--@mbg.generated-->
+    <!--@Table t_waybill_detail-->
+    <id column="id" jdbcType="BIGINT" property="id"/>
+    <result column="waybill_no" jdbcType="VARCHAR" property="waybillNo"/>
+    <result column="scan_time" jdbcType="DATE" property="scanTime"/>
+    <result column="weight" jdbcType="DECIMAL" property="weight"/>
+    <result column="province" jdbcType="VARCHAR" property="province"/>
+    <result column="destination" jdbcType="VARCHAR" property="destination"/>
+    <result column="salesman_name" jdbcType="VARCHAR" property="salesmanName"/>
+    <result column="send_customer" jdbcType="VARCHAR" property="sendCustomer"/>
+    <result column="send_customer_name" jdbcType="VARCHAR" property="sendCustomerName"/>
+    <result column="settle_code" jdbcType="VARCHAR" property="settleCode"/>
+    <result column="settle_name" jdbcType="VARCHAR" property="settleName"/>
+    <result column="material_type" jdbcType="VARCHAR" property="materialType"/>
+    <result column="extra_fee" jdbcType="DECIMAL" property="extraFee"/>
+    <result column="express_fee" jdbcType="DECIMAL" property="expressFee"/>
+    <result column="bill_month" jdbcType="VARCHAR" property="billMonth"/>
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, waybill_no, scan_time, weight, province, destination, salesman_name, send_customer,
+    send_customer_name, settle_code, settle_name, material_type, extra_fee, express_fee,
+    bill_month, create_time, update_time
+  </sql>
+
+  <insert id="insertBatch">
+    INSERT INTO t_waybill_detail (
+    waybill_no, scan_time, weight, province, destination,
+    salesman_name, send_customer, send_customer_name,
+    settle_code, settle_name, material_type,
+    extra_fee, express_fee, bill_month
+    ) VALUES
+    <foreach collection="list" item="item" separator=",">
+      (#{item.waybillNo}, #{item.scanTime}, #{item.weight}, #{item.province}, #{item.destination},
+      #{item.salesmanName}, #{item.sendCustomer}, #{item.sendCustomerName},
+      #{item.settleCode}, #{item.settleName}, #{item.materialType},
+      #{item.extraFee}, #{item.expressFee}, #{item.billMonth})
+    </foreach>
+  </insert>
+
+  <update id="updateExtraFee">
+    UPDATE t_waybill_detail
+    SET extra_fee = 0.1
+    WHERE
+    province = '上海市'
+    OR destination LIKE CONCAT('%', '太仓市', '%')
+    OR destination LIKE CONCAT('%', '昆山市', '%')
+  </update>
+  <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
+    SELECT
+      settle_name AS shopName,
+      send_customer_name AS customerName
+    FROM
+      t_waybill_detail
+    WHERE material_type NOT IN ('圆通新电子面单','COD电子面单')
+    GROUP BY
+      settle_name,
+      send_customer_name
+    ORDER BY
+    send_customer_name,
+      settle_name
+  </select>
+
+  <update id="updateCustomerByShopName">
+    update t_waybill_detail set send_customer_name = #{customerName} where settle_name = #{shopName}
+  </update>
+
+  <select id="getCustomerNameAndCode" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
+    SELECT
+      send_customer AS customerCode,
+      send_customer_name AS customerName
+    FROM
+      t_waybill_detail
+    WHERE material_type NOT IN ('圆通新电子面单','COD电子面单')
+    GROUP BY
+      send_customer,
+      send_customer_name
+    ORDER BY
+    send_customer_name,
+      send_customer
+  </select>
+
+  <update id="updateCode">
+    UPDATE t_waybill_detail SET send_customer = #{code} WHERE send_customer_name = #{name}
+  </update>
+  <update id="updateEmpInfo">
+    UPDATE t_waybill_detail SET emp_type = #{empType},salesman_name = #{empName} WHERE  send_customer_name = #{custName}
+  </update>
+</mapper>
