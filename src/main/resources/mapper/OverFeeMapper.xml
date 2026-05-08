@@ -29,6 +29,6 @@
     </foreach>
   </update>
   <update id="updateEndTime">
-    update t_fixed_fee set end_time = #{endTime} where code = #{code} and end_time = '2999-12-31'
+    update t_over_fee set end_time = #{endTime} where code = #{code} and end_time = '2999-12-31'
   </update>
 </mapper>
