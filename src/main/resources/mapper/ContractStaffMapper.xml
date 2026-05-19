@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.ContractStaffMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.ContractStaff">
+    <!--@mbg.generated-->
+    <!--@Table t_contract_staff-->
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="contract_name" jdbcType="VARCHAR" property="contractName" />
+    <result column="real_name" jdbcType="VARCHAR" property="realName" />
+    <result column="phone" jdbcType="VARCHAR" property="phone" />
+    <result column="entry_date" jdbcType="DATE" property="entryDate" />
+    <result column="staff_type" jdbcType="INTEGER" property="staffType" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, contract_name, real_name, phone, entry_date, staff_type, create_time, update_time
+  </sql>
+</mapper>

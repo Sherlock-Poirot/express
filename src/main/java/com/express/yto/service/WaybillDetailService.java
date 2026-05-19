@@ -18,4 +18,6 @@ public interface WaybillDetailService extends IService<WaybillDetail> {
     SysTask getImportTask(String taskNo);
 
     void cleanData(LocalDate date);
+
+    void calculateBill(LocalDate date);
 }

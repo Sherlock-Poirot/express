@@ -25,4 +25,13 @@ public class FileHandlerFactory {
         }
         throw new IllegalArgumentException("未找到处理器：" + fileName);
     }
+
+    public ExcelFileHandler getCustomerHandler(String customerName) {
+        for (ExcelFileHandler handler : handlers) {
+            if (handler.supportsByCustomer(customerName)) {
+                return handler;
+            }
+        }
+        throw new IllegalArgumentException("未找到处理器：" + customerName);
+    }
 }

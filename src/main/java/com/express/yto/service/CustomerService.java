@@ -2,8 +2,8 @@ package com.express.yto.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.CustomerDetailDTO;
-import com.express.yto.dto.CustomerInput;
 import com.express.yto.dto.CustomerPriceDetailDTO;
 import com.express.yto.dto.CustomerPriceInput;
 import com.express.yto.dto.CustomerSearchInput;
@@ -35,4 +35,6 @@ public interface CustomerService extends IService<Customer> {
     CustomerDetailDTO getDetail(String code);
 
     void updateCustomer(CustomerDetailDTO input);
+
+    List<CustomerCodeAndNameDTO> fuzzyMatch(String code, String name);
 }

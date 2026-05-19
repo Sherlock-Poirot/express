@@ -7,7 +7,8 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,7 +43,7 @@ public class WaybillDetail {
      */
     @TableField(value = "scan_time")
     @ExcelProperty("扫描时间")
-    private Date scanTime;
+    private LocalDate scanTime;
 
     /**
      * 计费重量（kg）两位小数
@@ -133,14 +134,14 @@ public class WaybillDetail {
      */
     @TableField(value = "create_time")
     @ExcelIgnore
-    private Date createTime;
+    private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
     @TableField(value = "update_time")
     @ExcelIgnore
-    private Date updateTime;
+    private LocalDateTime updateTime;
 
     public static final String COL_ID = "id";
 

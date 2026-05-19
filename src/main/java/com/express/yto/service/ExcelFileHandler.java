@@ -16,4 +16,5 @@ public interface ExcelFileHandler {
      */
     boolean supports(String fileName);
 
+    boolean supportsByCustomer(String customerName);
 }

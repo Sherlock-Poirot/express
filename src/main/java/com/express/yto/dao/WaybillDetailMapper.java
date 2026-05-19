@@ -1,6 +1,8 @@
 package com.express.yto.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.express.yto.dto.BillIdAndFeeDTO;
+import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.model.WaybillDetail;
@@ -30,4 +32,14 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
 
     void updateEmpInfo(@Param("custName") String customerName, @Param("empName") String empName,
             @Param("empType") String empType);
+
+    void updateDiscrete();
+
+    List<CustomerCodeAndNameDTO> getDirectCustomer();
+
+    void updateFeeBatch(@Param("list") List<BillIdAndFeeDTO> idAndFeeList);
+
+    List<ContractShopExcelDTO> getEmpAliLoose();
+
+    List<ContractShopExcelDTO> getEmpLimit();
 }

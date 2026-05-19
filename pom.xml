@@ -67,7 +67,7 @@
     <dependency>
       <groupId>com.alibaba</groupId>
       <artifactId>druid</artifactId>
-      <version>1.1.9</version>
+      <version>1.2.20</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/io.springfox/springfox-swagger2 -->
     <dependency>

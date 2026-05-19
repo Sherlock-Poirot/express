@@ -1,9 +1,11 @@
 package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.dto.ShopEmpInput;
 import com.express.yto.model.ShopEmp;
+import com.express.yto.service.CustomerService;
 import com.express.yto.service.ShopService;
 import io.swagger.annotations.ApiOperation;
 import java.util.List;
@@ -27,6 +29,9 @@ public class ShopController {
     @Autowired
     private ShopService shopService;
 
+    @Autowired
+    private CustomerService customerService;
+
     @GetMapping("/search")
     @ApiOperation("店铺列表（分页）")
     public RestResult<IPage<ShopEmp>> search(@RequestParam(value = "code", required = false) String code,
@@ -45,14 +50,14 @@ public class ShopController {
 
     @PostMapping("/add")
     @ApiOperation("新增")
-    public RestResult<String> add(@RequestBody ShopEmpInput input){
+    public RestResult<String> add(@RequestBody ShopEmpInput input) {
         shopService.add(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/update")
     @ApiOperation("编辑")
-    public RestResult<String> update(@RequestBody ShopEmpInput input){
+    public RestResult<String> update(@RequestBody ShopEmpInput input) {
         shopService.update(input);
         return RestResult.ok("操作成功");
     }
@@ -62,6 +67,14 @@ public class ShopController {
     public RestResult<Integer> importShop(@RequestParam("file") MultipartFile file) {
         int count = shopService.importShop(file);
         return RestResult.ok(count);
+    }
+
+    @GetMapping("/fuzzyMatch")
+    @ApiOperation("模糊匹配客户代码和名称")
+    public RestResult<List<CustomerCodeAndNameDTO>> fuzzyMatch(
+            @RequestParam(name = "code", required = false) String code,
+            @RequestParam(name = "name", required = false) String name) {
+        return RestResult.ok(customerService.fuzzyMatch(code, name));
     }
 
 }

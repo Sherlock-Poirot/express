@@ -54,4 +54,9 @@ public class PointOneExcelHandler implements ExcelFileHandler {
                 .contains("李玲玲") || fileName.contains("下里桥王建");
     }
 
+    @Override
+    public boolean supportsByCustomer(String customerName) {
+        return supports(customerName);
+    }
+
 }

@@ -80,4 +80,9 @@ public class RuBinBinExcelHandler implements ExcelFileHandler {
     public boolean supports(String fileName) {
         return fileName.contains("ceo南山及趣多多");
     }
+
+    @Override
+    public boolean supportsByCustomer(String customerName) {
+        return supports(customerName);
+    }
 }

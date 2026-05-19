@@ -1,39 +1,36 @@
 package com.express.yto.service.impl;
 
 import com.express.yto.dto.ContractShopExcelDTO;
-import com.express.yto.service.CalculationService;
+import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
  * @author Detective
- * @date Created in 2025/9/23
+ * @date Created in 2026/5/19
  */
 @Component
-@Order(100)
-@Slf4j
-public class NormalExcelFileHandler implements ExcelFileHandler {
+@Order(4)
+public class ZhouQingChengHandler implements ExcelFileHandler {
 
     @Autowired
-    private CalculationService calculationService;
+    private EmployeeService employeeService;
 
     @Override
     public List<ContractShopExcelDTO> handle(List<ContractShopExcelDTO> list, String companyId) {
-        return calculationService.calculation(list, companyId);
+        return employeeService.aliAndLoose(list,"yto_576017", false);
     }
 
     @Override
     public boolean supports(String fileName) {
-        return fileName.contains(".xlsx") || fileName.contains(".xls");
+        return fileName.contains("周清成");
     }
 
     @Override
     public boolean supportsByCustomer(String customerName) {
-        return true;
+        return supports(customerName);
     }
-
 }

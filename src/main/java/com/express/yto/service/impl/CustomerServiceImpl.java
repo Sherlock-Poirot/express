@@ -17,6 +17,7 @@ import com.express.yto.dao.FixedFeeMapper;
 import com.express.yto.dao.OverFeeMapper;
 import com.express.yto.dao.PrepaymentMapper;
 import com.express.yto.dao.ShopEmpMapper;
+import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.CustomerDetailDTO;
 import com.express.yto.dto.CustomerExcelDTO;
 import com.express.yto.dto.CustomerPriceDetailDTO;
@@ -312,6 +313,20 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             list.add(ExtraFee.builder().code(code).areaName(extra.getAreaName()).fee(extra.getFee()).build());
         }
         extraFeeMapper.insert(list);
+    }
+
+    @Override
+    public List<CustomerCodeAndNameDTO> fuzzyMatch(String code, String name) {
+        QueryWrapper<Customer> qw = new QueryWrapper<>();
+        if (StringUtils.isNotBlank(code)) {
+            qw.like("code", code);
+        }
+        if (StringUtils.isNotBlank(name)) {
+            qw.like("cust_name", name);
+        }
+        List<Customer> list = customerMapper.selectList(qw);
+        return list.stream().map(e -> CustomerCodeAndNameDTO.builder().customerCode(e.getCode())
+                .customerName(e.getCustName()).build()).collect(Collectors.toList());
     }
 
     private Boolean deletePriceJudge(List<FixedFee> fixedList, List<OverFee> overList, List<Prepayment> prepaymentList,
