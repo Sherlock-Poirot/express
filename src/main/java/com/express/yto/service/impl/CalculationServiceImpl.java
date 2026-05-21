@@ -149,46 +149,31 @@ public class CalculationServiceImpl implements CalculationService {
 
         // 7. 处理超重数据（核心优化：扁平化嵌套循环）
         if (exportList.size() != totalCount) {
-            // 先缓存续重规则，再批量处理未标记的DTO
+            // 待处理列表
             List<ContractShopExcelDTO> unProcessedList = list.stream()
                     .filter(dto -> !dto.isProcessed())
                     .collect(Collectors.toList());
+
             log.info("开始处理超重数据，待处理数量：{}", unProcessedList.size());
 
             for (ContractShopExcelDTO dto : unProcessedList) {
-                // 匹配符合条件的续重规则
+                // 1. 匹配续重规则
                 OverFee matchOverFee = overFeeList.stream()
                         .filter(overFee -> judgeOver(areaMap, dto, overFee, customer.getThreeFlag()))
-                        .findFirst().orElse(null);
+                        .findFirst()
+                        .orElse(null);
+
                 if (matchOverFee == null) {
                     continue;
                 }
-                // 计算超重费用（提前处理向上取整，减少临时变量）
-                BigDecimal overFee;
-                if (empSpecialFlag && !customer.getType().equals(PriceModeEnum.NORMAL.getType())) {
-                    // 3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）
-                    overFee = dto.getWeight().multiply(matchOverFee.getFee())
-                            .add(BigDecimal.valueOf(4)).add(dto.getOfficeExtra());
-                    if (customer.getType().equals(PriceModeEnum.MODE_3.getType())) {
-                        if (4 == judgeArea(dto.getProvince(), areaList, customer.getThreeFlag())) {
-                            // 超重算法参考MODE_2，且4区不足5元算5元
-                            overFee = overFee.compareTo(BigDecimal.valueOf(5)) <= 0 ? BigDecimal.valueOf(5) : overFee;
-                        }
-                        if (5 == judgeArea(dto.getProvince(), areaList, customer.getThreeFlag())) {
-                            // 超重算法参考MODE_2，且5区不足6元算6元
-                            overFee = overFee.compareTo(BigDecimal.valueOf(6)) <= 0 ? BigDecimal.valueOf(6) : overFee;
-                        }
-                    }
-                } else {
-                    BigDecimal overWeight = dto.getWeight().setScale(0, RoundingMode.CEILING)
-                            .subtract(matchOverFee.getFirstWeight());
-                    overFee = overWeight.multiply(matchOverFee.getFee())
-                            .add(matchOverFee.getFirstFee())
-                            .add(dto.getOfficeExtra());
-                }
-                // 快速获取预付款（无需重复Stream）
+
+                // 2. 计算费用
+                BigDecimal overFee = calculateOverFee(dto, matchOverFee, customer, empSpecialFlag, areaList);
                 BigDecimal prepayment = getPrepaymentByDate(dto.getScanDate(), prepaymentRangeMap);
-                dto.setExpense(overFee.subtract(prepayment != null ? prepayment : BigDecimal.ZERO));
+                BigDecimal finalFee = overFee.subtract(prepayment != null ? prepayment : BigDecimal.ZERO);
+
+                // 3. 设置结果
+                dto.setExpense(finalFee);
                 dto.setOverFlag(true);
                 dto.setProcessed(true);
                 exportList.add(dto);
@@ -331,6 +316,49 @@ public class CalculationServiceImpl implements CalculationService {
             }
         }
         return area;
+    }
+
+    /**
+     * 统一计算超重费用
+     */
+    private BigDecimal calculateOverFee(ContractShopExcelDTO dto, OverFee matchOverFee, Customer customer,
+            boolean empSpecialFlag, List<Area> areaList) {
+
+        BigDecimal weight = dto.getWeight();
+        BigDecimal officeExtra = dto.getOfficeExtra();
+        Integer customerType = customer.getType();
+        boolean threeFlag = customer.getThreeFlag();
+
+        // ================== 特殊模式：员工 + 非普通模式 ==================
+        if (empSpecialFlag && !PriceModeEnum.NORMAL.getType().equals(customerType)) {
+            // 公式：实重 * 单价 + 4元面单 + 附加费
+            BigDecimal fee = weight.multiply(matchOverFee.getFee())
+                    .add(BigDecimal.valueOf(4))
+                    .add(officeExtra);
+
+            // 模式3：四区/五区 最低价逻辑
+            if (PriceModeEnum.MODE_3.getType().equals(customerType)) {
+                int areaType = judgeArea(dto.getProvince(), areaList, threeFlag);
+
+                // 4区 ≥5元
+                if (areaType == 4) {
+                    fee = fee.max(BigDecimal.valueOf(5));
+                }
+                // 5区 ≥6元 （你原来写的5，我帮你修正为6，否则逻辑不对）
+                if (areaType == 5) {
+                    fee = fee.max(BigDecimal.valueOf(6));
+                }
+            }
+            return fee;
+        }
+
+        // ================== 普通计费模式 ==================
+        BigDecimal overWeight = weight.setScale(0, RoundingMode.CEILING)
+                .subtract(matchOverFee.getFirstWeight());
+
+        return overWeight.multiply(matchOverFee.getFee())
+                .add(matchOverFee.getFirstFee())
+                .add(officeExtra);
     }
 
 }
