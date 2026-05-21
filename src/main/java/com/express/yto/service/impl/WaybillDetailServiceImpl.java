@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -207,18 +208,46 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
         // 2.承包区计算账单
         List<ContractShopExcelDTO> updateList = new ArrayList<>();
-        // TODO 承包区分为4块 散单，淘宝，限定，特批
+        // 承包区分为4块 散单，淘宝，限定，特批
         List<ContractShopExcelDTO> aliLoose = waybillDetailMapper.getEmpAliLoose();
         List<ContractShopExcelDTO> afterAliLoose = employeeService.aliAndLoose(aliLoose,"yto_576017", false);
         List<ContractShopExcelDTO> limit = waybillDetailMapper.getEmpLimit();
         List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit,"yto_576017", true);
         updateList.addAll(afterAliLoose);
         updateList.addAll(afterLimit);
-        // TODO 特批
+        // 特批
         List<ContractShopExcelDTO> special = waybillDetailMapper.getSpecialEmpBill();
         List<ContractShopExcelDTO> afterSpecial = employeeService.dealSpecial(special);
-        // TODO 3.业务员账单计算
+        updateList.addAll(afterSpecial);
+        // 3.业务员账单计算
+        List<ContractShopExcelDTO> companyEmpList = waybillDetailMapper.getCompanyLoose();
+        List<ContractShopExcelDTO> dealList = factory.getCustomerHandler("业务员").handle(companyEmpList, "yto_576017");
+        updateList.addAll(dealList);
+        if (CollectionUtils.isNotEmpty(updateList)){
+            // 每 2 万条分一片（HuTool 分片）
+            int batchSize = 20000;
+            List<List<ContractShopExcelDTO>> partitionList = ListUtil.split(updateList, batchSize);
 
+            log.info("批量更新运单费用，总条数：{}，分批数：{}", updateList.size(), partitionList.size());
+
+            // 循环每一批执行更新
+            for (List<ContractShopExcelDTO> batchList : partitionList) {
+                updateWayBillIdAndFee(batchList);
+            }
+
+            log.info("批量更新运单费用全部完成");
+        }
+    }
+
+    private void updateWayBillIdAndFee(List<ContractShopExcelDTO> dealList) {
+        List<BillIdAndFeeDTO> idAndFeeList = dealList.stream().map(e -> {
+            BillIdAndFeeDTO idAndFee = new BillIdAndFeeDTO();
+            idAndFee.setBillId(e.getId());
+            idAndFee.setFee(e.getExpense());
+            return idAndFee;
+        }).collect(Collectors.toList());
+
+        waybillDetailMapper.updateFeeBatch(idAndFeeList);
     }
 
     private void executeDirectCustomerTask(List<CustomerCodeAndNameDTO> codeAndName) {
@@ -293,14 +322,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             return bill;
         }).collect(Collectors.toList());
         List<ContractShopExcelDTO> dealList = handler.handle(list, "yto_576017");
-        List<BillIdAndFeeDTO> idAndFeeList = dealList.stream().map(e -> {
-            BillIdAndFeeDTO idAndFee = new BillIdAndFeeDTO();
-            idAndFee.setBillId(e.getId());
-            idAndFee.setFee(e.getExpense());
-            return idAndFee;
-        }).collect(Collectors.toList());
-
-        waybillDetailMapper.updateFeeBatch(idAndFeeList);
+        updateWayBillIdAndFee(dealList);
     }
 
 }
