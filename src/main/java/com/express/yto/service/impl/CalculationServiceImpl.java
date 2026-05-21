@@ -1,7 +1,7 @@
 package com.express.yto.service.impl;
 
 import static com.express.yto.util.AreaUtil.AREA_4;
-import static com.express.yto.util.AreaUtil.*;
+import static com.express.yto.util.AreaUtil.isThisArea;
 import static com.express.yto.util.BillDealUtil.getPrepaymentByDate;
 import static com.express.yto.util.BillDealUtil.isDateInRange;
 import static com.express.yto.util.BillDealUtil.judgeOver;
@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.FeeGroupDTO;
 import com.express.yto.enums.FourModelEnum;
+import com.express.yto.enums.PriceModeEnum;
 import com.express.yto.model.Area;
 import com.express.yto.model.Customer;
 import com.express.yto.model.ExtraFee;
@@ -26,12 +27,10 @@ import com.express.yto.service.PrepaymentService;
 import com.express.yto.util.LocalDateRange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -66,11 +65,13 @@ public class CalculationServiceImpl implements CalculationService {
     private AreaService areaService;
 
     @Override
-    public List<ContractShopExcelDTO> calculation(List<ContractShopExcelDTO> list, String companyId) {
-        return doCalculation(list, companyId);
+    public List<ContractShopExcelDTO> calculation(List<ContractShopExcelDTO> list, String companyId,
+            Boolean empSpecialFlag) {
+        return doCalculation(list, companyId, empSpecialFlag);
     }
 
-    private List<ContractShopExcelDTO> doCalculation(List<ContractShopExcelDTO> list, String companyId) {
+    private List<ContractShopExcelDTO> doCalculation(List<ContractShopExcelDTO> list, String companyId,
+            Boolean empSpecialFlag) {
         // 1. 前置校验：空数据直接返回
         if (CollectionUtils.isEmpty(list)) {
             return new ArrayList<>();
@@ -163,11 +164,28 @@ public class CalculationServiceImpl implements CalculationService {
                     continue;
                 }
                 // 计算超重费用（提前处理向上取整，减少临时变量）
-                BigDecimal overWeight = dto.getWeight().setScale(0, RoundingMode.CEILING)
-                        .subtract(matchOverFee.getFirstWeight());
-                BigDecimal overFee = overWeight.multiply(matchOverFee.getFee())
-                        .add(matchOverFee.getFirstFee())
-                        .add(dto.getOfficeExtra());
+                BigDecimal overFee;
+                if (empSpecialFlag && !customer.getType().equals(PriceModeEnum.NORMAL.getType())) {
+                    // 3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）
+                    overFee = dto.getWeight().multiply(matchOverFee.getFee())
+                            .add(BigDecimal.valueOf(4)).add(dto.getOfficeExtra());
+                    if (customer.getType().equals(PriceModeEnum.MODE_3.getType())) {
+                        if (4 == judgeArea(dto.getProvince(), areaList, customer.getThreeFlag())) {
+                            // 超重算法参考MODE_2，且4区不足5元算5元
+                            overFee = overFee.compareTo(BigDecimal.valueOf(5)) <= 0 ? BigDecimal.valueOf(5) : overFee;
+                        }
+                        if (5 == judgeArea(dto.getProvince(), areaList, customer.getThreeFlag())) {
+                            // 超重算法参考MODE_2，且5区不足6元算6元
+                            overFee = overFee.compareTo(BigDecimal.valueOf(6)) <= 0 ? BigDecimal.valueOf(6) : overFee;
+                        }
+                    }
+                } else {
+                    BigDecimal overWeight = dto.getWeight().setScale(0, RoundingMode.CEILING)
+                            .subtract(matchOverFee.getFirstWeight());
+                    overFee = overWeight.multiply(matchOverFee.getFee())
+                            .add(matchOverFee.getFirstFee())
+                            .add(dto.getOfficeExtra());
+                }
                 // 快速获取预付款（无需重复Stream）
                 BigDecimal prepayment = getPrepaymentByDate(dto.getScanDate(), prepaymentRangeMap);
                 dto.setExpense(overFee.subtract(prepayment != null ? prepayment : BigDecimal.ZERO));
@@ -301,6 +319,18 @@ public class CalculationServiceImpl implements CalculationService {
         return AREA_4.contains(dto.getProvince());
     }
 
-
+    private Integer judgeArea(String province, List<Area> areaList, Boolean threeFlag) {
+        if (threeFlag && province.contains("海南")) {
+            return 3;
+        }
+        Integer area = 0;
+        for (Area e : areaList) {
+            if (e.getAreaCity().contains(province)) {
+                area = e.getAreaNum();
+                break;
+            }
+        }
+        return area;
+    }
 
 }

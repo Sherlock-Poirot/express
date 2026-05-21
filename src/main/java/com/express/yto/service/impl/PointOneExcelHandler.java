@@ -39,7 +39,7 @@ public class PointOneExcelHandler implements ExcelFileHandler {
 
             }
         }
-        List<ContractShopExcelDTO> exportList = calculationService.calculation(list, companyId);
+        List<ContractShopExcelDTO> exportList = calculationService.calculation(list, companyId, false);
         exportList.forEach(e->{
             if (map.containsKey(e.getId())){
                 e.setWeight(map.get(e.getId()));

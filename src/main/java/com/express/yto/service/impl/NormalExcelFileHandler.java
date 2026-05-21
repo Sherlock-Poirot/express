@@ -23,7 +23,7 @@ public class NormalExcelFileHandler implements ExcelFileHandler {
 
     @Override
     public List<ContractShopExcelDTO> handle(List<ContractShopExcelDTO> list, String companyId) {
-        return calculationService.calculation(list, companyId);
+        return calculationService.calculation(list, companyId, false);
     }
 
     @Override

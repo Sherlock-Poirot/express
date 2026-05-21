@@ -158,4 +158,25 @@
     WHERE
       t1.emp_type = '限定'
   </select>
+  <select id="getSpecialEmpBill" resultType="com.express.yto.dto.ContractShopExcelDTO">
+    SELECT
+      t1.waybill_no             AS id,
+      t1.scan_time              AS scanDate,
+      t1.weight                 AS weight,
+      t1.province               AS province,
+      t1.destination            AS destination,
+      t1.salesman_name          AS employeeName,
+      t1.send_customer          AS code,
+      t1.send_customer_name     AS name,
+      t1.settle_code            AS shopId,
+      t1.settle_name            AS shopName,
+      t1.material_type          AS shopType,
+      t1.extra_fee              AS officeExtra,
+      t1.express_fee            AS expense
+    FROM
+      t_waybill_detail t1
+    WHERE
+      t1.emp_type = '特批'
+
+  </select>
 </mapper>

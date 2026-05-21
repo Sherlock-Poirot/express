@@ -42,4 +42,6 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
     List<ContractShopExcelDTO> getEmpAliLoose();
 
     List<ContractShopExcelDTO> getEmpLimit();
+
+    List<ContractShopExcelDTO> getSpecialEmpBill();
 }

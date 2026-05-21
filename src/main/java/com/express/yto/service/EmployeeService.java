@@ -13,4 +13,6 @@ public interface EmployeeService {
     void dealEmployeeBill(DealDataInput input);
 
     List<ContractShopExcelDTO> aliAndLoose(List<ContractShopExcelDTO> list, String companyId, Boolean limit);
+
+    List<ContractShopExcelDTO> dealSpecial(List<ContractShopExcelDTO> special);
 }

@@ -9,5 +9,5 @@ import java.util.List;
  */
 public interface CalculationService {
 
-    List<ContractShopExcelDTO> calculation(List<ContractShopExcelDTO> list, String companyId);
+    List<ContractShopExcelDTO> calculation(List<ContractShopExcelDTO> list, String companyId, Boolean empSpecialFlag);
 }

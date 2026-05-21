@@ -14,6 +14,7 @@ import com.express.yto.model.ExtraFee;
 import com.express.yto.model.FixedFee;
 import com.express.yto.model.OverFee;
 import com.express.yto.service.AreaService;
+import com.express.yto.service.CalculationService;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExtraFeeService;
 import com.express.yto.service.FixedFeeService;
@@ -53,6 +54,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Autowired
     private AreaService areaService;
+
+    @Autowired
+    private CalculationService calculationService;
 
     @Override
     public void dealEmployeeBill(DealDataInput input) {
@@ -217,5 +221,10 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         log.info("结算计算完成，最终返回数据量：{}", exportList.size());
         return exportList;
+    }
+
+    @Override
+    public List<ContractShopExcelDTO> dealSpecial(List<ContractShopExcelDTO> special) {
+        return calculationService.calculation(special,"yto_576017", true);
     }
 }

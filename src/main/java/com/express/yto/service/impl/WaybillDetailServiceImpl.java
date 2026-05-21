@@ -215,6 +215,8 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         updateList.addAll(afterAliLoose);
         updateList.addAll(afterLimit);
         // TODO 特批
+        List<ContractShopExcelDTO> special = waybillDetailMapper.getSpecialEmpBill();
+        List<ContractShopExcelDTO> afterSpecial = employeeService.dealSpecial(special);
         // TODO 3.业务员账单计算
 
     }

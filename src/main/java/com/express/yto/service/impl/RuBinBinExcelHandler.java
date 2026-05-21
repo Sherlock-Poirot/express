@@ -41,7 +41,7 @@ public class RuBinBinExcelHandler implements ExcelFileHandler {
                 && e.getWeight().compareTo(BigDecimal.valueOf(3)) <= 0 && !AREA_EXCLUDE.contains(e.getProvince()))
                 .collect(Collectors.toList());
         list.removeAll(subList);
-        List<ContractShopExcelDTO> exportList = calculationService.calculation(list, companyId);
+        List<ContractShopExcelDTO> exportList = calculationService.calculation(list, companyId, false);
         // 1-3kg特殊处理
         List<ContractShopExcelDTO> subExportList = special(subList);
         exportList.addAll(subExportList);
