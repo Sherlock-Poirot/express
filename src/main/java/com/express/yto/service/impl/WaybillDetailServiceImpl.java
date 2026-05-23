@@ -199,7 +199,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Override
     public void calculateBill(LocalDate date) {
-        // TODO 特殊算法，梁瑞阳，陈丽芝需要特别对待
+        // 特殊算法，梁瑞阳，陈丽芝，周清成，ceo茹彬彬，赵洋洋维护客户需要特别对待
         // 查询所有客户分类，计算时分3块 1.直营客户，2.承包区，3.业务员
         // 获取直营客户的代码和名称
         List<CustomerCodeAndNameDTO> codeAndName = waybillDetailMapper.getDirectCustomer();
@@ -237,6 +237,28 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
             log.info("批量更新运单费用全部完成");
         }
+    }
+
+    @Override
+    public String importWaybillDiff(MultipartFile file) {
+        String taskNo = IdUtil.getSnowflakeNextIdStr();
+        SysTask task = new SysTask();
+        task.setTaskNo(taskNo);
+        task.setTaskType(Thread.currentThread().getStackTrace()[1].getMethodName());
+        task.setMessage("导入差异重量");
+        task.setStatus(ImportStatus.RUNNING.getCode());
+        sysTaskMapper.insert(task);
+
+        try {
+            // 🔥 关键：主线程先把文件读成字节数组（文件不会被删）
+            byte[] fileBytes = file.getBytes();
+            // 传 byte[]，不再传 MultipartFile
+            waybillAsyncService.doImportDiffAsync(fileBytes, taskNo);
+        } catch (IOException e) {
+            throw new BusinessException("读取文件失败");
+        }
+
+        return taskNo;
     }
 
     private void updateWayBillIdAndFee(List<ContractShopExcelDTO> dealList) {
@@ -292,7 +314,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     // 计算账单
     private void calculateDirectBill(CustomerCodeAndNameDTO dto) {
-        // TODO 如果是陈丽芝，梁瑞阳，ceo南山趣多多，周清成，赵洋洋维护客户 特别处理
+        // 如果是陈丽芝，梁瑞阳，ceo南山趣多多，周清成，赵洋洋维护客户 特别处理
         ExcelFileHandler handler = factory.getCustomerHandler(dto.getCustomerName());
         QueryWrapper<WaybillDetail> qw = new QueryWrapper<>();
         qw.eq("send_customer", dto.getCustomerCode());

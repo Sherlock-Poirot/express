@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.express.yto.dto.BillIdAndFeeDTO;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
+import com.express.yto.dto.IdAndWeightDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.model.WaybillDetail;
 import java.time.LocalDate;
@@ -46,4 +47,6 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
     List<ContractShopExcelDTO> getSpecialEmpBill();
 
     List<ContractShopExcelDTO> getCompanyLoose();
+
+    void updateWeight(@Param("list") List<IdAndWeightDTO> cacheList);
 }

@@ -116,6 +116,21 @@
       update t_waybill_detail set express_fee = #{data.fee} where code = #{data.billId}
     </foreach>
   </update>
+
+  <update id="updateWeight">
+    update t_waybill_detail
+    set weight = case waybill_no
+    <foreach collection="list" item="data">
+      when #{data.billId} then #{data.weight}
+    </foreach>
+    end
+    where waybill_no in
+    <foreach collection="list" open="(" separator="," close=")" item="data">
+      #{data.billId}
+    </foreach>
+  </update>
+
+
   <select id="getEmpAliLoose" resultType="com.express.yto.dto.ContractShopExcelDTO">
     SELECT
       t1.waybill_no             AS id,

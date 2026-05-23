@@ -20,4 +20,6 @@ public interface WaybillDetailService extends IService<WaybillDetail> {
     void cleanData(LocalDate date);
 
     void calculateBill(LocalDate date);
+
+    String importWaybillDiff(MultipartFile file);
 }
