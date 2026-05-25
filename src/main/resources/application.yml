@@ -14,6 +14,20 @@ spring:
 #    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
 #    测试库
     url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
+    druid:
+      # 连接池配置
+      max-active: 50          # 最大活跃连接数（默认8，改成50）
+      min-idle: 10            # 最小空闲连接
+      initial-size: 10        # 初始连接数
+      # 连接获取配置
+      max-wait: 60000         # 获取连接最大等待时间（毫秒）
+      time-between-eviction-runs-millis: 60000  # 清理空闲连接间隔（毫秒）
+      min-evictable-idle-time-millis: 300000    # 空闲连接最小存活时间（毫秒）
+      # 连接检测配置
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
 server:
   port: 8088
 
@@ -22,3 +36,12 @@ mybatis-plus:
     map-underscore-to-camel-case: true
   mapper-locations: classpath:mapper/*.xml
 
+# ==================================================
+# Log4j2 日志配置
+# ==================================================
+# 日志配置文件位置
+logging:
+  config: classpath:log4j2.xml
+  # 控制台日志级别（可选）
+  level:
+    root: INFO

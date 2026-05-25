@@ -192,6 +192,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             e.setCode(customer.getCode());
         });
         QueryWrapper<Area> areaQw = new QueryWrapper<>();
+        areaQw.eq("company_id", "yto_576017");
         List<Area> areaList = areaMapper.selectList(areaQw);
         for (Area area : areaList) {
             if (customer.getThreeFlag()) {

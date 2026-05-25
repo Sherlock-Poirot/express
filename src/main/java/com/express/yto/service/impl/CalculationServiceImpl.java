@@ -200,7 +200,8 @@ public class CalculationServiceImpl implements CalculationService {
                     .collect(Collectors.toList());
             log.error("未匹配到规则的数据：{}",
                     unProcessed.stream().map(ContractShopExcelDTO::getId).collect(Collectors.toList()));
-            throw new RuntimeException("结算数量不一致，总数量：" + totalCount + "，已处理：" + exportList.size());
+            throw new RuntimeException(customer.getCustName() + "结算数量不一致，总数量：" + totalCount +
+                    "，已处理：" + exportList.size());
         }
 
         // 9. 处理地区加收（修复 Lambda 变量 final 问题）

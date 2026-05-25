@@ -100,8 +100,8 @@
 
   <select id="getDirectCustomer" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
     SELECT
-      send_customer,
-      send_customer_name
+      send_customer AS customerCode,
+      send_customer_name AS customerName
     FROM
       t_waybill_detail
     WHERE
@@ -112,9 +112,16 @@
   </select>
 
   <update id="updateFeeBatch">
-    <foreach collection="list" separator=";" item="data">
-      update t_waybill_detail set express_fee = #{data.fee} where code = #{data.billId}
-    </foreach>
+    UPDATE t_waybill_detail
+    SET express_fee = CASE waybill_no
+      <foreach collection="list" item="data">
+        WHEN #{data.billId} THEN #{data.fee}
+      </foreach>
+    END
+    WHERE waybill_no IN
+      <foreach collection="list" item="data" open="(" separator="," close=")">
+        #{data.billId}
+      </foreach>
   </update>
 
   <update id="updateWeight">

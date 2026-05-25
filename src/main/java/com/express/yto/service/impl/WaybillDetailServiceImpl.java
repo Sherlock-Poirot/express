@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +71,8 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     @Autowired
     private FileHandlerFactory factory;
 
+    @Autowired
+    private ThreadPoolTaskExecutor asyncExecutor;
 
     @Override
     public String importWaybill(MultipartFile file) {
@@ -153,8 +156,8 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         // 3.清洗客户编码send_customer
         List<CustomerCodeAndNameDTO> billCodeNameList = waybillDetailMapper.getCustomerNameAndCode();
         Map<String, String> billCustomerMap = billCodeNameList.stream()
-                .collect(Collectors.toMap(CustomerCodeAndNameDTO::getCustomerName,    // key：店铺名
-                        CustomerCodeAndNameDTO::getCustomerCode,// value：客户名
+                .collect(Collectors.toMap(CustomerCodeAndNameDTO::getCustomerCode,    // key：店铺名
+                        CustomerCodeAndNameDTO::getCustomerName,// value：客户名
                         (oldValue, newValue) -> oldValue     //  key 重复时，保留旧值（防止报错）
                 ));
         // 获取最新的账单的客户名称和客户编码
@@ -167,19 +170,19 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
         List<CustomerCodeAndNameDTO> needUpdateCodeList = new ArrayList<>();
         for (Map.Entry<String, String> entry : billCustomerMap.entrySet()) {
-            String customerName = entry.getKey();
-            String billCustomerCode = entry.getValue();
+            String customerCode = entry.getKey();
+            String billCustomerName = entry.getValue();
 
-            String realCode = customerMap.get(customerName);
+            String realCode = customerMap.get(billCustomerName);
 
             if (realCode == null) {
                 continue;
             }
 
             // 2. 客户编码不一致 → 需要更新
-            if (!Objects.equals(billCustomerCode, realCode)) {
+            if (!Objects.equals(customerCode, realCode)) {
                 CustomerCodeAndNameDTO dto = new CustomerCodeAndNameDTO();
-                dto.setCustomerName(customerName);
+                dto.setCustomerName(billCustomerName);
                 dto.setCustomerCode(realCode); // 放【正确客户编码】
 
                 needUpdateCodeList.add(dto);
@@ -210,9 +213,9 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         List<ContractShopExcelDTO> updateList = new ArrayList<>();
         // 承包区分为4块 散单，淘宝，限定，特批
         List<ContractShopExcelDTO> aliLoose = waybillDetailMapper.getEmpAliLoose();
-        List<ContractShopExcelDTO> afterAliLoose = employeeService.aliAndLoose(aliLoose,"yto_576017", false);
+        List<ContractShopExcelDTO> afterAliLoose = employeeService.aliAndLoose(aliLoose, "yto_576017", false);
         List<ContractShopExcelDTO> limit = waybillDetailMapper.getEmpLimit();
-        List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit,"yto_576017", true);
+        List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit, "yto_576017", true);
         updateList.addAll(afterAliLoose);
         updateList.addAll(afterLimit);
         // 特批
@@ -223,7 +226,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         List<ContractShopExcelDTO> companyEmpList = waybillDetailMapper.getCompanyLoose();
         List<ContractShopExcelDTO> dealList = factory.getCustomerHandler("业务员").handle(companyEmpList, "yto_576017");
         updateList.addAll(dealList);
-        if (CollectionUtils.isNotEmpty(updateList)){
+        if (CollectionUtils.isNotEmpty(updateList)) {
             // 每 2 万条分一片（HuTool 分片）
             int batchSize = 20000;
             List<List<ContractShopExcelDTO>> partitionList = ListUtil.split(updateList, batchSize);
@@ -262,14 +265,32 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     }
 
     private void updateWayBillIdAndFee(List<ContractShopExcelDTO> dealList) {
-        List<BillIdAndFeeDTO> idAndFeeList = dealList.stream().map(e -> {
-            BillIdAndFeeDTO idAndFee = new BillIdAndFeeDTO();
-            idAndFee.setBillId(e.getId());
-            idAndFee.setFee(e.getExpense());
-            return idAndFee;
-        }).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(dealList)) {
+            log.info("更新运单费用列表为空，跳过");
+            return;
+        }
 
-        waybillDetailMapper.updateFeeBatch(idAndFeeList);
+        int batchSize = 100;
+        List<List<ContractShopExcelDTO>> partitions = ListUtil.split(dealList, batchSize);
+
+        log.info("开始更新运单费用，总条数：{}，分 {} 批执行（每批 {} 条）",
+                dealList.size(), partitions.size(), batchSize);
+
+        for (int i = 0; i < partitions.size(); i++) {
+            List<ContractShopExcelDTO> batch = partitions.get(i);
+
+            List<BillIdAndFeeDTO> idAndFeeList = batch.stream().map(e -> {
+                BillIdAndFeeDTO idAndFee = new BillIdAndFeeDTO();
+                idAndFee.setBillId(e.getId());
+                idAndFee.setFee(e.getExpense());
+                return idAndFee;
+            }).collect(Collectors.toList());
+
+            waybillDetailMapper.updateFeeBatch(idAndFeeList);
+            log.info("第 {}/{} 批更新完成（{} 条）", i + 1, partitions.size(), batch.size());
+        }
+
+        log.info("更新运单费用完成，总计更新 {} 条", dealList.size());
     }
 
     private void executeDirectCustomerTask(List<CustomerCodeAndNameDTO> codeAndName) {
@@ -278,43 +299,42 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             return;
         }
 
-        // 切 15 份
-        List<List<CustomerCodeAndNameDTO>> splitList = ListUtil.split(codeAndName, 15);
+        int batchSize = 5;
+        List<List<CustomerCodeAndNameDTO>> splitList = ListUtil.split(codeAndName, batchSize);
 
-        //  独立线程池（用完即销）
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(15);
-        executor.setMaxPoolSize(15);
-        executor.setQueueCapacity(500);
-        executor.setThreadNamePrefix("direct-bill-task-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
+        CountDownLatch latch = new CountDownLatch(splitList.size());
 
-        log.info("【直营客户账单】开始异步处理，总数据量：{}，分成15个线程执行", codeAndName.size());
+        log.info("【直营客户账单】开始异步处理，总数据量：{}，分成 {} 个批次执行（每批 {} 个客户）",
+                codeAndName.size(), splitList.size(), batchSize);
 
-        // 提交任务
         for (List<CustomerCodeAndNameDTO> subList : splitList) {
-            executor.execute(() -> {
-                for (CustomerCodeAndNameDTO dto : subList) {
-                    try {
+            asyncExecutor.execute(() -> {
+                try {
+                    for (CustomerCodeAndNameDTO dto : subList) {
                         calculateDirectBill(dto);
-                    } catch (Exception e) {
-                        //  优雅日志：记录哪个客户失败 + 异常信息
-                        log.error("【直营客户账单】处理失败，客户编码：{}，客户名称：{}",
-                                dto.getCustomerCode(), dto.getCustomerName(), e);
                     }
+                } catch (Exception e) {
+                    log.error("【直营客户账单】处理批次数据失败", e);
+                } finally {
+                    latch.countDown();
                 }
             });
         }
 
-        // 关闭线程池（不阻塞，不等待）
-        executor.shutdown();
-        log.info("【直营客户账单】所有任务已提交至线程池");
+        try {
+            log.info("【直营客户账单】正在等待所有任务完成...");
+            latch.await();
+            log.info("【直营客户账单】所有任务已完成");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("【直营客户账单】等待任务完成时被中断", e);
+        }
     }
 
     // 计算账单
     private void calculateDirectBill(CustomerCodeAndNameDTO dto) {
         // 如果是陈丽芝，梁瑞阳，ceo南山趣多多，周清成，赵洋洋维护客户 特别处理
+        log.info("开始处理{}数据", dto.getCustomerName());
         ExcelFileHandler handler = factory.getCustomerHandler(dto.getCustomerName());
         QueryWrapper<WaybillDetail> qw = new QueryWrapper<>();
         qw.eq("send_customer", dto.getCustomerCode());

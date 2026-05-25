@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Log4j2 配置文件
+  说明：
+  - 配置了控制台输出和文件输出
+  - 日志文件按天滚动
+  - 配置了业务日志、错误日志、SQL日志分开输出
+-->
+<Configuration status="WARN">
+    <!-- 变量定义 -->
+    <Properties>
+        <!-- 日志文件存储根目录（可根据需要修改） -->
+        <Property name="LOG_HOME">/Users/detective/logs/yto</Property>
+        <!-- 日志文件前缀 -->
+        <Property name="APP_NAME">yto</Property>
+        <!-- 日志文件大小阈值 -->
+        <Property name="LOG_FILE_SIZE">100MB</Property>
+        <!-- 日志文件保留天数 -->
+        <Property name="LOG_FILE_RETENTION">30</Property>
+        <!-- 控制台日志格式 -->
+        <Property name="CONSOLE_LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level [%X{traceId}] %logger{36} - %msg%n
+        </Property>
+        <!-- 文件日志格式 -->
+        <Property name="FILE_LOG_PATTERN">
+            %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level [%X{traceId}] %logger{36} - %msg%n
+        </Property>
+    </Properties>
+
+    <!-- 日志输出定义 -->
+    <Appenders>
+        <!-- ================================================== -->
+        <!-- 1. 控制台输出 -->
+        <!-- ================================================== -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${CONSOLE_LOG_PATTERN}"/>
+        </Console>
+
+        <!-- ================================================== -->
+        <!-- 2. 业务日志文件输出 -->
+        <!-- ================================================== -->
+        <RollingFile name="BusinessLog" 
+                     fileName="${LOG_HOME}/${APP_NAME}.log" 
+                     filePattern="${LOG_HOME}/${APP_NAME}-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <!-- 按天滚动 -->
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <!-- 按大小滚动（100MB） -->
+                <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
+            </Policies>
+            <DefaultRolloverStrategy max="${LOG_FILE_RETENTION}">
+                <!-- 删除超过保留天数的日志 -->
+                <Delete basePath="${LOG_HOME}" maxDepth="1">
+                    <IfFileName glob="${APP_NAME}-*.log"/>
+                    <IfLastModified age="${LOG_FILE_RETENTION}d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <!-- ================================================== -->
+        <!-- 3. 错误日志文件输出 -->
+        <!-- ================================================== -->
+        <RollingFile name="ErrorLog" 
+                     fileName="${LOG_HOME}/${APP_NAME}-error.log" 
+                     filePattern="${LOG_HOME}/${APP_NAME}-error-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
+            </Policies>
+            <DefaultRolloverStrategy max="${LOG_FILE_RETENTION}">
+                <Delete basePath="${LOG_HOME}" maxDepth="1">
+                    <IfFileName glob="${APP_NAME}-error-*.log"/>
+                    <IfLastModified age="${LOG_FILE_RETENTION}d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+            <!-- 只输出ERROR级别及以上的日志 -->
+            <Filters>
+                <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingFile>
+
+        <!-- ================================================== -->
+        <!-- 4. SQL日志文件输出 -->
+        <!-- ================================================== -->
+        <RollingFile name="SqlLog" 
+                     fileName="${LOG_HOME}/${APP_NAME}-sql.log" 
+                     filePattern="${LOG_HOME}/${APP_NAME}-sql-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
+            </Policies>
+            <DefaultRolloverStrategy max="${LOG_FILE_RETENTION}">
+                <Delete basePath="${LOG_HOME}" maxDepth="1">
+                    <IfFileName glob="${APP_NAME}-sql-*.log"/>
+                    <IfLastModified age="${LOG_FILE_RETENTION}d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+
+        <!-- ================================================== -->
+        <!-- 5. 运单业务日志输出 -->
+        <!-- ================================================== -->
+        <RollingFile name="WaybillLog" 
+                     fileName="${LOG_HOME}/${APP_NAME}-waybill.log" 
+                     filePattern="${LOG_HOME}/${APP_NAME}-waybill-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
+            </Policies>
+            <DefaultRolloverStrategy max="${LOG_FILE_RETENTION}">
+                <Delete basePath="${LOG_HOME}" maxDepth="1">
+                    <IfFileName glob="${APP_NAME}-waybill-*.log"/>
+                    <IfLastModified age="${LOG_FILE_RETENTION}d"/>
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+    </Appenders>
+
+    <!-- ================================================== -->
+    <!-- 日志级别配置 -->
+    <!-- ================================================== -->
+    <Loggers>
+        <!-- 根日志配置 -->
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="BusinessLog"/>
+            <AppenderRef ref="ErrorLog"/>
+        </Root>
+
+        <!-- MyBatis SQL日志配置 -->
+        <Logger name="com.express.yto.dao" level="DEBUG" additivity="false">
+            <AppenderRef ref="SqlLog"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        
+        <!-- MyBatis Plus SQL日志 -->
+        <Logger name="com.baomidou.mybatisplus" level="DEBUG" additivity="false">
+            <AppenderRef ref="SqlLog"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- 运单业务日志 -->
+        <Logger name="com.express.yto.service.impl.WaybillDetailServiceImpl" level="INFO" additivity="false">
+            <AppenderRef ref="WaybillLog"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- Spring日志级别 -->
+        <Logger name="org.springframework" level="INFO"/>
+        
+        <!-- Druid日志 -->
+        <Logger name="com.alibaba.druid" level="WARN"/>
+    </Loggers>
+</Configuration>
