@@ -48,7 +48,7 @@
     UPDATE t_waybill_detail
     SET extra_fee = 0.1
     WHERE
-    province = '上海市'
+    province = '上海'
     OR destination LIKE CONCAT('%', '太仓市', '%')
     OR destination LIKE CONCAT('%', '昆山市', '%')
   </update>
