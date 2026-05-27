@@ -25,7 +25,7 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
 
     List<ShopCustomerNameDTO> getShopCustomer();
 
-    void updateCustomerByShopName(@Param("shopName") String shopName, @Param("customerName") String customerName);
+    void updateCustomerByShopName(@Param("shopName") String shopName, @Param("materialType") String materialType, @Param("customerName") String customerName, @Param("customerCode") String customerCode);
 
     List<CustomerCodeAndNameDTO> getCustomerNameAndCode();
 

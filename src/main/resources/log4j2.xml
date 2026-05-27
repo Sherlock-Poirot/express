@@ -10,7 +10,7 @@
     <!-- 变量定义 -->
     <Properties>
         <!-- 日志文件存储根目录（可根据需要修改） -->
-        <Property name="LOG_HOME">/Users/detective/logs/yto</Property>
+        <Property name="LOG_HOME">./logs</Property>
         <!-- 日志文件前缀 -->
         <Property name="APP_NAME">yto</Property>
         <!-- 日志文件大小阈值 -->

@@ -118,12 +118,16 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
         List<ShopCustomerNameDTO> shopList = shopEmpMapper.getShopCustomer();
 
-        for (ShopCustomerNameDTO dto : needUpdateList) {
-            waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), dto.getCustomerName());
-        }
-
-        for (CustomerCodeAndNameDTO dto : needUpdateCodeList) {
-            waybillDetailMapper.updateCode(dto.getCustomerName(), dto.getCustomerCode());
+        for (ShopCustomerNameDTO dto : billShopCustomerList) {
+            ShopCustomerNameDTO shop = shopList.stream()
+                    .filter(s -> s.getShopName().equals(dto.getShopName()) 
+                            && s.getMaterialType().equals(dto.getMaterialType()))
+                    .findFirst()
+                    .orElse(null);
+            if (shop != null) {
+                String materialTypeWithSuffix = dto.getMaterialType() + "电子面单";
+                waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), materialTypeWithSuffix, shop.getCustomerName(), shop.getCustomerCode());
+            }
         }
         // 4.处理承包区账单 淘宝，特批，散件
         List<EmpBillInfoDTO> empInfo = shopEmpMapper.getEmpInfo();
@@ -149,7 +153,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         List<ContractShopExcelDTO> aliLoose = waybillDetailMapper.getEmpAliLoose();
         List<ContractShopExcelDTO> afterAliLoose = employeeService.aliAndLoose(aliLoose, "yto_576017", false);
         List<ContractShopExcelDTO> limit = waybillDetailMapper.getEmpLimit();
-        List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit, "yto_576017", true);
+        List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit, "yto_576017_limit", true);
         updateList.addAll(afterAliLoose);
         updateList.addAll(afterLimit);
         // 特批

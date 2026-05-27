@@ -8,12 +8,12 @@ spring:
       enabled: true
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
-    driver-class-name: com.mysql.jdbc.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: Stn123456
-#    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
+    password: stn123456
+#    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=30000&socketTimeout=60000
 #    测试库
-    url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true
+    url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=30000&socketTimeout=60000
     druid:
       # 连接池配置
       max-active: 50          # 最大活跃连接数（默认8，改成50）
@@ -22,12 +22,16 @@ spring:
       # 连接获取配置
       max-wait: 60000         # 获取连接最大等待时间（毫秒）
       time-between-eviction-runs-millis: 60000  # 清理空闲连接间隔（毫秒）
-      min-evictable-idle-time-millis: 300000    # 空闲连接最小存活时间（毫秒）
+      min-evictable-idle-time-millis: 1800000    # 空闲连接最小存活时间（毫秒）- 改为30分钟
+      max-evictable-idle-time-millis: 3600000    # 空闲连接最大存活时间（毫秒）- 1小时
       # 连接检测配置
       validation-query: SELECT 1
       test-while-idle: true
-      test-on-borrow: false
+      test-on-borrow: true        # 获取连接时验证，防止使用失效连接
       test-on-return: false
+      # 连接保活配置（解决MySQL 8小时超时问题）
+      keep-alive: true           # 启用连接保活
+      phy-timeout-millis: 7200000  # 物理连接超时时间（2小时）
 server:
   port: 8088
 

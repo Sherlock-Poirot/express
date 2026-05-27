@@ -105,9 +105,12 @@ public class EmployeeServiceImpl implements EmployeeService {
                     prepayment.getPreFee()
             );
         }
-        Map<String, Integer> areaMap = new HashMap<>(areaList.size());
+        Map<String, Integer> areaMap = new HashMap<>();
         for (Area area : areaList) {
-            areaMap.put(area.getAreaCity(), area.getAreaNum());
+            String[] cities = area.getAreaCity().split("、");
+            for (String city : cities) {
+                areaMap.put(city.trim(), area.getAreaNum());
+            }
         }
 
         // 5. 预缓存：固定费用分组（提前计算扣减预付款后的值）

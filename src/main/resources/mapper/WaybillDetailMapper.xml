@@ -70,7 +70,9 @@
   </select>
 
   <update id="updateCustomerByShopName">
-    update t_waybill_detail set send_customer_name = #{customerName} where settle_name = #{shopName}
+    update t_waybill_detail 
+    set send_customer_name = #{customerName}, send_customer = #{customerCode} 
+    where settle_name = #{shopName} AND material_type = #{materialType}
   </update>
 
   <select id="getCustomerNameAndCode" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
