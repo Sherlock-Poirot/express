@@ -12,4 +12,8 @@ public class ShopCustomerNameDTO {
     private String shopName;
 
     private String customerName;
+
+    private String materialType;
+
+    private String customerCode;
 }

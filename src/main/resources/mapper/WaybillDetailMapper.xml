@@ -49,19 +49,21 @@
     SET extra_fee = 0.1
     WHERE
     province = '上海'
-    OR destination LIKE CONCAT('%', '太仓市', '%')
-    OR destination LIKE CONCAT('%', '昆山市', '%')
+    OR destination LIKE CONCAT('%', '太仓', '%')
+    OR destination LIKE CONCAT('%', '昆山', '%')
   </update>
   <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
     SELECT
       settle_name AS shopName,
-      send_customer_name AS customerName
+      send_customer_name AS customerName,
+      REPLACE(material_type,'电子面单','') AS materialType
     FROM
       t_waybill_detail
     WHERE material_type NOT IN ('圆通新电子面单','COD电子面单')
     GROUP BY
       settle_name,
-      send_customer_name
+      send_customer_name,
+			material_type
     ORDER BY
     send_customer_name,
       settle_name
@@ -135,6 +137,12 @@
     <foreach collection="list" open="(" separator="," close=")" item="data">
       #{data.billId}
     </foreach>
+  </update>
+  <update id="updateEmpType">
+    update t_waybill_detail set emp_type = null
+  </update>
+  <update id="updateExpressFee">
+        update t_waybill_detail set express_fee = null
   </update>
 
 

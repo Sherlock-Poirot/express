@@ -20,14 +20,18 @@
   <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
     SELECT
       shop_name AS shopName,
-      cust_name AS customerName
+      cust_name AS customerName,
+      code AS customerCode,
+      platform AS materialType
     FROM
       t_shop_emp
     GROUP BY
       shop_name,
-      cust_name
+      cust_name,
+      code,
+      platform
       ORDER BY
-      cust_name,shop_name
+      cust_name,shop_name,platform
   </select>
   <select id="getEmpInfo" resultType="com.express.yto.dto.EmpBillInfoDTO">
     SELECT

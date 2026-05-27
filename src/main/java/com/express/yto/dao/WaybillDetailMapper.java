@@ -49,4 +49,8 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
     List<ContractShopExcelDTO> getCompanyLoose();
 
     void updateWeight(@Param("list") List<IdAndWeightDTO> cacheList);
+
+    void updateEmpType(LocalDate date);
+
+    void updateExpressFee(LocalDate date);
 }

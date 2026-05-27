@@ -69,6 +69,11 @@ public class LiangRuiYangHandler implements ExcelFileHandler {
                 dto.setExpense(avg.subtract(AVG_WEIGHT));
             }
         }
+        for (ContractShopExcelDTO dto : list) {
+            if (dto.getOfficeExtra() != null){
+                dto.setExpense(dto.getExpense().add(dto.getOfficeExtra()));
+            }
+        }
         return list;
     }
 

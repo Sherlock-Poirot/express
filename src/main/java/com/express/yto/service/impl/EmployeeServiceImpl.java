@@ -1,6 +1,7 @@
 package com.express.yto.service.impl;
 
 import static com.express.yto.util.AreaUtil.isThisArea;
+import static com.express.yto.util.BillDealUtil.getPrepaymentByDate;
 import static com.express.yto.util.BillDealUtil.isDateInRange;
 import static com.express.yto.util.BillDealUtil.judgeOver;
 
@@ -13,12 +14,15 @@ import com.express.yto.model.Area;
 import com.express.yto.model.ExtraFee;
 import com.express.yto.model.FixedFee;
 import com.express.yto.model.OverFee;
+import com.express.yto.model.Prepayment;
 import com.express.yto.service.AreaService;
 import com.express.yto.service.CalculationService;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExtraFeeService;
 import com.express.yto.service.FixedFeeService;
 import com.express.yto.service.OverFeeService;
+import com.express.yto.service.PrepaymentService;
+import com.express.yto.util.LocalDateRange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -58,6 +62,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Autowired
     private CalculationService calculationService;
 
+    @Autowired
+    private PrepaymentService prepaymentService;
+
     @Override
     public void dealEmployeeBill(DealDataInput input) {
         employeeFactory.getHandler(input.getCompanyId()).handle(input);
@@ -83,6 +90,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         // 3. 一次性查询所有基础数据（原逻辑保留，已最优）
         List<FixedFee> fixedFeeList = fixedFeeService.list(new QueryWrapper<FixedFee>().eq("code", companyId));
+        List<Prepayment> prepaymentList = prepaymentService.list(new QueryWrapper<Prepayment>().eq("code", companyId));
         List<ExtraFee> extraFeeList = extraFeeService.list(new QueryWrapper<ExtraFee>().eq("code", companyId));
         List<OverFee> overFeeList = overFeeService.list(new QueryWrapper<OverFee>().eq("code", companyId));
         List<Area> areaList = areaService
@@ -90,12 +98,16 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         // 4. 预缓存：预付款（时间区间→金额）- 核心优化：避免重复过滤
         // 封装时间区间匹配工具，替代字符串拼接key
+        Map<LocalDateRange, BigDecimal> prepaymentRangeMap = new HashMap<>(prepaymentList.size());
+        for (Prepayment prepayment : prepaymentList) {
+            prepaymentRangeMap.put(
+                    new LocalDateRange(prepayment.getStartTime(), prepayment.getEndTime()),
+                    prepayment.getPreFee()
+            );
+        }
         Map<String, Integer> areaMap = new HashMap<>(areaList.size());
         for (Area area : areaList) {
-            String[] cityArr = area.getAreaCity().split("、");
-            for (String city : cityArr) {
-                areaMap.put(city, area.getAreaNum());
-            }
+            areaMap.put(area.getAreaCity(), area.getAreaNum());
         }
 
         // 5. 预缓存：固定费用分组（提前计算扣减预付款后的值）
@@ -103,6 +115,9 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .map(fixedFee -> {
                     FeeGroupDTO dto = new FeeGroupDTO();
                     BeanUtils.copyProperties(fixedFee, dto);
+                    // 快速匹配预付款（无需字符串拼接）
+                    BigDecimal prepayment = getPrepaymentByDate(fixedFee.getStartTime(), prepaymentRangeMap);
+                    dto.setFee(fixedFee.getFee().subtract(prepayment != null ? prepayment : BigDecimal.ZERO));
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -169,6 +184,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                                 .add(dto.getOfficeExtra());
                     }
                 }
+                BigDecimal prepayment = getPrepaymentByDate(dto.getScanDate(), prepaymentRangeMap);
+                overFee = overFee.subtract(prepayment);
 
                 dto.setExpense(overFee);
                 dto.setOverFlag(true);

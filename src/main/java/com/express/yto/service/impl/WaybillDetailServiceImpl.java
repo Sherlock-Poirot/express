@@ -109,85 +109,19 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         // 1.更新扶持派费，上海，昆山市，太仓市 extra_fee 更新为0.1
         // TODO 扶持派费会有变动这里写死是因为暂时只为圆通写的到时候要做成可配置的并且有效时间也要加上
         waybillDetailMapper.updateExtraFee(date);
+        waybillDetailMapper.updateEmpType(date);
+//        waybillDetailMapper.updateExpressFee(date);
         // 2.混绑店铺需要更新 物料发放客户名称（send_customer_name）和客户编码（send_customer）
         // 2.1 查询账单表的 店铺-客户 数据
+        // TODO 改一下逻辑，先获取店铺名称和平台名称，再获取店铺表里的相应数据，然后更新客户名称和客户编码
         List<ShopCustomerNameDTO> billShopCustomerList = waybillDetailMapper.getShopCustomer();
-        Map<String, String> billShopCustomerMap = billShopCustomerList.stream()
-                .collect(Collectors.toMap(ShopCustomerNameDTO::getShopName,    // key：店铺名
-                        ShopCustomerNameDTO::getCustomerName,// value：客户名
-                        (oldValue, newValue) -> oldValue     //  key 重复时，保留旧值（防止报错）
-                ));
-        // 2.2 拿店铺名称去店铺表查询客户数据，如果不一致就标记然后更新
+
         List<ShopCustomerNameDTO> shopList = shopEmpMapper.getShopCustomer();
-        Map<String, String> shopCustomerMap = shopList.stream()
-                .collect(Collectors.toMap(ShopCustomerNameDTO::getShopName,    // key：店铺名
-                        ShopCustomerNameDTO::getCustomerName,// value：客户名
-                        (oldValue, newValue) -> oldValue     //  key 重复时，保留旧值（防止报错）
-                ));
-        // 存放【需要更新】的店铺 + 正确客户
-        List<ShopCustomerNameDTO> needUpdateList = new ArrayList<>();
 
-        // 遍历账单里的店铺关系
-        for (Map.Entry<String, String> entry : billShopCustomerMap.entrySet()) {
-            String shopName = entry.getKey();
-            String billCustomer = entry.getValue();
-
-            // 拿到正确的客户名
-            String realCustomer = shopCustomerMap.get(shopName);
-
-            // 1. 店铺表中不存在 → 跳过
-            if (realCustomer == null) {
-                continue;
-            }
-
-            // 2. 客户名不一致 → 需要更新
-            if (!Objects.equals(billCustomer, realCustomer)) {
-                ShopCustomerNameDTO dto = new ShopCustomerNameDTO();
-                dto.setShopName(shopName);
-                dto.setCustomerName(realCustomer); // 放【正确客户】
-
-                needUpdateList.add(dto);
-            }
-        }
-        // 最终 needUpdateList 就是你要批量更新的数据
         for (ShopCustomerNameDTO dto : needUpdateList) {
             waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), dto.getCustomerName());
         }
-        // 3.清洗客户编码send_customer
-        List<CustomerCodeAndNameDTO> billCodeNameList = waybillDetailMapper.getCustomerNameAndCode();
-        Map<String, String> billCustomerMap = billCodeNameList.stream()
-                .collect(Collectors.toMap(CustomerCodeAndNameDTO::getCustomerCode,    // key：店铺名
-                        CustomerCodeAndNameDTO::getCustomerName,// value：客户名
-                        (oldValue, newValue) -> oldValue     //  key 重复时，保留旧值（防止报错）
-                ));
-        // 获取最新的账单的客户名称和客户编码
-        List<CustomerCodeAndNameDTO> customerCodeName = customerMapper.getCustomerNameAndCode();
-        Map<String, String> customerMap = customerCodeName.stream()
-                .collect(Collectors.toMap(CustomerCodeAndNameDTO::getCustomerName,    // key：店铺名
-                        CustomerCodeAndNameDTO::getCustomerCode,// value：客户名
-                        (oldValue, newValue) -> oldValue     //  key 重复时，保留旧值（防止报错）
-                ));
 
-        List<CustomerCodeAndNameDTO> needUpdateCodeList = new ArrayList<>();
-        for (Map.Entry<String, String> entry : billCustomerMap.entrySet()) {
-            String customerCode = entry.getKey();
-            String billCustomerName = entry.getValue();
-
-            String realCode = customerMap.get(billCustomerName);
-
-            if (realCode == null) {
-                continue;
-            }
-
-            // 2. 客户编码不一致 → 需要更新
-            if (!Objects.equals(customerCode, realCode)) {
-                CustomerCodeAndNameDTO dto = new CustomerCodeAndNameDTO();
-                dto.setCustomerName(billCustomerName);
-                dto.setCustomerCode(realCode); // 放【正确客户编码】
-
-                needUpdateCodeList.add(dto);
-            }
-        }
         for (CustomerCodeAndNameDTO dto : needUpdateCodeList) {
             waybillDetailMapper.updateCode(dto.getCustomerName(), dto.getCustomerCode());
         }
