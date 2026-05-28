@@ -331,7 +331,7 @@ public class CalculationServiceImpl implements CalculationService {
         boolean threeFlag = customer.getThreeFlag();
 
         // ================== 特殊模式：员工 + 非普通模式 ==================
-        if (empSpecialFlag && !PriceModeEnum.NORMAL.getType().equals(customerType)) {
+        if (empSpecialFlag && customerType != null && !PriceModeEnum.NORMAL.getType().equals(customerType)) {
             // 公式：实重 * 单价 + 4元面单 + 附加费
             BigDecimal fee = weight.multiply(matchOverFee.getFee())
                     .add(BigDecimal.valueOf(4))

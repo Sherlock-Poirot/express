@@ -245,6 +245,14 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public List<ContractShopExcelDTO> dealSpecial(List<ContractShopExcelDTO> special) {
-        return calculationService.calculation(special,"yto_576017", true);
+        Map<String, List<ContractShopExcelDTO>> groupByCode = special.stream()
+                .filter(dto -> dto.getCode() != null && !dto.getCode().isEmpty())
+                .collect(Collectors.groupingBy(ContractShopExcelDTO::getCode));
+        
+        List<ContractShopExcelDTO> result = new ArrayList<>();
+        for (List<ContractShopExcelDTO> subList : groupByCode.values()) {
+            result.addAll(calculationService.calculation(subList, "yto_576017", true));
+        }
+        return result;
     }
 }
