@@ -8,9 +8,11 @@ public enum PriceModeEnum {
 
     NORMAL(1, "正常模式"),
 
-    MODE_2(2, "3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）"),
+    MODE_2(2, "3kg以上面单4元+实重*单价"),
 
-    MODE_3(3, "超重算法参考MODE_2，且4区不足5元算5元，5区不足6元算6元");
+    MODE_3(3, "3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）"),
+
+    MODE_4(4, "超重算法参考MODE_3，且4区不足5元算5元，5区不足6元算6元");
 
     private final Integer type;
     private final String remark;

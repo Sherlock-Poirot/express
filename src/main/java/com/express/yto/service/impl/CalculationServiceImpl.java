@@ -329,16 +329,36 @@ public class CalculationServiceImpl implements CalculationService {
         BigDecimal officeExtra = dto.getOfficeExtra();
         Integer customerType = customer.getType();
         boolean threeFlag = customer.getThreeFlag();
+        BigDecimal fee;
+        // ================== 普通计费模式 ==================
+        BigDecimal overWeight = weight.setScale(0, RoundingMode.CEILING)
+                .subtract(matchOverFee.getFirstWeight());
+
+        fee = overWeight.multiply(matchOverFee.getFee())
+                .add(matchOverFee.getFirstFee())
+                .add(officeExtra);
 
         // ================== 特殊模式：员工 + 非普通模式 ==================
         if (empSpecialFlag && customerType != null && !PriceModeEnum.NORMAL.getType().equals(customerType)) {
-            // 公式：实重 * 单价 + 4元面单 + 附加费
-            BigDecimal fee = weight.multiply(matchOverFee.getFee())
-                    .add(BigDecimal.valueOf(4))
-                    .add(officeExtra);
 
-            // 模式3：四区/五区 最低价逻辑
+            if (PriceModeEnum.MODE_2.getType().equals(customerType) && weight.compareTo(BigDecimal.valueOf(3)) > 0) {
+                // 3kg以上面单4元+实重*单价
+                fee = weight.multiply(matchOverFee.getFee())
+                        .add(BigDecimal.valueOf(4))
+                        .add(officeExtra);
+            }
             if (PriceModeEnum.MODE_3.getType().equals(customerType)) {
+                // 3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）
+                fee = weight.multiply(matchOverFee.getFee())
+                        .add(BigDecimal.valueOf(4))
+                        .add(officeExtra);
+            }
+            if (PriceModeEnum.MODE_4.getType().equals(customerType)) {
+                // 3kg以上面单4元+实重*单价,四区价格算法 实重*单价+4（面单费），五区算法：实重*单价+4（面单费）
+                fee = weight.multiply(matchOverFee.getFee())
+                        .add(BigDecimal.valueOf(4))
+                        .add(officeExtra);
+                // 模式4：四区/五区 最低价逻辑
                 int areaType = judgeArea(dto.getProvince(), areaList, threeFlag);
 
                 // 4区 ≥5元
@@ -350,16 +370,9 @@ public class CalculationServiceImpl implements CalculationService {
                     fee = fee.max(BigDecimal.valueOf(6));
                 }
             }
-            return fee;
         }
 
-        // ================== 普通计费模式 ==================
-        BigDecimal overWeight = weight.setScale(0, RoundingMode.CEILING)
-                .subtract(matchOverFee.getFirstWeight());
-
-        return overWeight.multiply(matchOverFee.getFee())
-                .add(matchOverFee.getFirstFee())
-                .add(officeExtra);
+        return fee;
     }
 
 }

@@ -141,7 +141,7 @@
     </foreach>
   </update>
   <update id="updateEmpType">
-    update t_waybill_detail set emp_type = null
+    update t_waybill_detail set emp_type = null, bill_month = DATE_FORMAT(scan_time, '%Y-%m')
   </update>
   <update id="updateExpressFee">
         update t_waybill_detail set express_fee = null

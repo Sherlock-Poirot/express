@@ -31,3 +31,35 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Logs ###
+logs/
+*.log
+*.logs
+*.out
+*.err
+/application.log
+/yto.log
+/yto-error.log
+/yto-sql.log
+/yto-waybill.log
+
+### OS files ###
+.DS_Store
+Thumbs.db
+
+### Build output ###
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+### IDE files ###
+*.swp
+*.swo
+*~
+
+### Spring Boot ###
+spring-shell.log
