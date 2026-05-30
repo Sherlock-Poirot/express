@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.MonthlyBillMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.MonthlyBill">
+    <id column="id" jdbcType="BIGINT" property="id"/>
+    <result column="bill_month" jdbcType="CHAR" property="billMonth"/>
+    <result column="cust_name" jdbcType="VARCHAR" property="custName"/>
+    <result column="code" jdbcType="VARCHAR" property="code"/>
+    <result column="receive_count" jdbcType="INTEGER" property="receiveCount"/>
+    <result column="avg_weight" jdbcType="DECIMAL" property="avgWeight"/>
+    <result column="receivable_amount" jdbcType="DECIMAL" property="receivableAmount"/>
+    <result column="special_remark" jdbcType="VARCHAR" property="specialRemark"/>
+    <result column="adjust_amount" jdbcType="DECIMAL" property="adjustAmount"/>
+    <result column="transfer_type" jdbcType="VARCHAR" property="transferType"/>
+    <result column="actual_amount" jdbcType="DECIMAL" property="actualAmount"/>
+    <result column="transfer_date" jdbcType="DATE" property="transferDate"/>
+    <result column="remark" jdbcType="VARCHAR" property="remark"/>
+    <result column="verify_sign" jdbcType="VARCHAR" property="verifySign"/>
+    <result column="type" jdbcType="INTEGER" property="type"/>
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, bill_month, cust_name, code, receive_count, avg_weight, receivable_amount,
+    special_remark, adjust_amount, transfer_type, actual_amount, transfer_date,
+    remark, verify_sign, type, create_time, update_time
+  </sql>
+
+  <select id="getDirectCustomerData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      w.send_customer_name AS custName,
+      w.send_customer AS code,
+      COUNT(*) AS receiveCount,
+      AVG(w.weight) AS avgWeight,
+      SUM(w.express_fee) AS receivableAmount,
+      '直营客户' AS custType
+    FROM
+      t_waybill_detail w
+    WHERE
+      (w.emp_type IS NULL OR w.emp_type = '')
+      AND w.send_customer_name IS NOT NULL
+    GROUP BY
+      w.send_customer_name, w.send_customer
+  </select>
+
+  <select id="getEmployeeData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      c.contract_name AS custName,
+      '' AS code,
+      COUNT(*) AS receiveCount,
+      AVG(w.weight) AS avgWeight,
+      SUM(w.express_fee) AS receivableAmount,
+      '直营业务员' AS custType
+    FROM
+      t_contract_staff c
+    INNER JOIN
+      t_waybill_detail w ON c.real_name = w.salesman_name
+    WHERE
+      w.emp_type IS NOT NULL
+      AND w.emp_type != ''
+      AND c.staff_type = 1
+    GROUP BY
+      c.contract_name
+  </select>
+
+  <select id="getContractLooseData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      c.contract_name AS custName,
+      '' AS code,
+      COUNT(*) AS receiveCount,
+      AVG(w.weight) AS avgWeight,
+      SUM(w.express_fee) AS receivableAmount,
+      w.emp_type AS custType
+    FROM
+      t_contract_staff c
+    INNER JOIN
+      t_waybill_detail w ON c.real_name = w.salesman_name
+    WHERE
+      w.emp_type = '散件'
+      AND c.staff_type = 0
+    GROUP BY
+      c.contract_name,w.emp_type
+  </select>
+
+  <select id="getContractTaobaoLimitedData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      t.emp_name AS custName,
+      '' AS code,
+      COUNT(*) AS receiveCount,
+      AVG(t.weight) AS avgWeight,
+      SUM(t.express_fee) AS receivableAmount,
+      t.emp_type AS custType
+    FROM (
+      SELECT DISTINCT
+        w.*,
+        c.emp_name
+      FROM
+        t_shop_emp c
+      INNER JOIN
+        t_waybill_detail w ON c.shop_name = w.settle_name
+      WHERE
+        w.emp_type IN ('淘宝', '限定')
+        AND (c.platform = REPLACE(w.material_type, '电子面单', '') OR c.platform = REPLACE(w.material_type, '新电子面单', ''))
+    ) t
+    GROUP BY
+      t.emp_name
+  </select>
+
+  <select id="getContractSpecialData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      t1.emp_name AS empName,
+      t1.cust_name AS custName,
+      COUNT(*) AS receiveCount,
+      AVG(t2.weight) AS avgWeight,
+      SUM(t2.express_fee) AS receivableAmount,
+      '特批' AS custType
+    FROM
+      t_shop_emp t1
+    INNER JOIN
+      t_waybill_detail t2 ON t1.shop_name = t2.settle_name
+    WHERE
+      t2.emp_type = '特批'
+    GROUP BY
+      t1.emp_name,t1.cust_name
+  </select>
+
+  <delete id="deleteByBillMonth">
+    DELETE FROM t_monthly_bill WHERE bill_month = #{billMonth}
+  </delete>
+</mapper>
