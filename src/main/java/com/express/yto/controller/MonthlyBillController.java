@@ -6,11 +6,17 @@ import com.express.yto.dto.RestResult;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.service.MonthlyBillService;
 import io.swagger.annotations.ApiOperation;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import javax.validation.Valid;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/monthlyBill")
 @ApiOperation("月度账单功能")
 @Validated
+@Slf4j
 public class MonthlyBillController {
 
     @Autowired
@@ -49,5 +56,40 @@ public class MonthlyBillController {
     public RestResult<String> generate(@RequestParam("billMonth") String billMonth) {
         monthlyBillService.generateSummaryBill(billMonth);
         return RestResult.ok("操作成功");
+    }
+
+    @ApiOperation("汇总导出（简化版）")
+    @GetMapping("/export")
+    public void export(@RequestParam("billMonth") String billMonth, HttpServletResponse response) {
+        try {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            monthlyBillService.exportSummaryByBillMonth(billMonth, outputStream);
+            
+            byte[] data = outputStream.toByteArray();
+            String fileName = billMonth + "月账单汇总.xlsx";
+            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
+                    .replaceAll("\\+", "%20");
+            
+            response.reset();
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
+            response.setContentLength(data.length);
+            response.setHeader("Pragma", "no-cache");
+            response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+            
+            response.getOutputStream().write(data);
+            response.getOutputStream().flush();
+            
+            log.info("导出账单成功: {}", billMonth);
+        } catch (Exception e) {
+            log.error("导出账单失败: {}", billMonth, e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "导出失败: " + e.getMessage());
+            } catch (IOException ioException) {
+                log.error("设置错误响应失败", ioException);
+            }
+        }
     }
 }

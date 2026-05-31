@@ -1,17 +1,24 @@
 package com.express.yto.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.ExcelWriter;
+import com.alibaba.excel.write.metadata.WriteSheet;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.MonthlyBillMapper;
+import com.express.yto.dto.MonthlyBillExportDTO;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.MonthlyBillSummaryDTO;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.service.MonthlyBillService;
+import com.express.yto.util.ExcelUtil;
+import java.io.OutputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -142,5 +149,153 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
         if (!billList.isEmpty()) {
             monthlyBillMapper.insert(billList);
         }
+    }
+
+    @Override
+    public void exportSummary(MonthlyBillSearchInput input, OutputStream outputStream) {
+        QueryWrapper<MonthlyBill> qw = new QueryWrapper<>();
+        
+        if ("time".equals(input.getDimensionType())) {
+            if (StringUtils.isNotBlank(input.getBillMonth())) {
+                qw.eq("bill_month", input.getBillMonth());
+            }
+        } else if ("customer".equals(input.getDimensionType())) {
+            if (StringUtils.isNotBlank(input.getCustomerName())) {
+                qw.like("cust_name", input.getCustomerName());
+            }
+        }
+
+        if (StringUtils.isNotBlank(input.getSortField())) {
+            String sortField = input.getSortField();
+            if ("custName".equals(sortField)) {
+                sortField = "cust_name";
+            } else if ("receiveCount".equals(sortField)) {
+                sortField = "receive_count";
+            } else if ("receivableAmount".equals(sortField)) {
+                sortField = "receivable_amount";
+            }
+
+            if ("asc".equalsIgnoreCase(input.getSortOrder())) {
+                qw.orderByAsc(sortField);
+            } else {
+                qw.orderByDesc(sortField);
+            }
+        } else {
+            qw.orderByDesc("create_time");
+        }
+
+        qw.eq("type", input.getType());
+        List<MonthlyBill> allList = monthlyBillMapper.selectList(qw);
+        
+        List<MonthlyBillExportDTO> directCustomerList = new ArrayList<>();
+        List<MonthlyBillExportDTO> contractAreaList = new ArrayList<>();
+        List<MonthlyBillExportDTO> employeeLooseList = new ArrayList<>();
+        
+        for (MonthlyBill bill : allList) {
+            MonthlyBillExportDTO dto = convertToDTO(bill);
+            if (bill.getType() == 0) {
+                directCustomerList.add(dto);
+            } else if (bill.getType() == 1) {
+                contractAreaList.add(dto);
+            } else if (bill.getType() == 2) {
+                employeeLooseList.add(dto);
+            }
+        }
+
+        ExcelWriter excelWriter = EasyExcel.write(outputStream)
+                .registerWriteHandler(ExcelUtil.getBillStyle())
+                .registerWriteHandler(ExcelUtil.getColumnWidthStyle())
+                .build();
+        
+        WriteSheet sheet1 = EasyExcel.writerSheet(0, "直营客户")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(directCustomerList, sheet1);
+        
+        WriteSheet sheet2 = EasyExcel.writerSheet(1, "承包区")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(contractAreaList, sheet2);
+        
+        WriteSheet sheet3 = EasyExcel.writerSheet(2, "业务员散件")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(employeeLooseList, sheet3);
+        
+        excelWriter.finish();
+    }
+
+    @Override
+    public void exportSummaryByBillMonth(String billMonth, OutputStream outputStream) {
+        List<MonthlyBill> directCustomerList = monthlyBillMapper.selectList(
+                new QueryWrapper<MonthlyBill>()
+                        .eq("bill_month", billMonth)
+                        .eq("type", 0)
+                        .orderByDesc("create_time")
+        );
+        
+        List<MonthlyBill> contractAreaList = monthlyBillMapper.selectList(
+                new QueryWrapper<MonthlyBill>()
+                        .eq("bill_month", billMonth)
+                        .eq("type", 1)
+                        .orderByDesc("create_time")
+        );
+        
+        List<MonthlyBill> employeeLooseList = monthlyBillMapper.selectList(
+                new QueryWrapper<MonthlyBill>()
+                        .eq("bill_month", billMonth)
+                        .eq("type", 2)
+                        .orderByDesc("create_time")
+        );
+
+        List<MonthlyBillExportDTO> directCustomerDTOList = directCustomerList.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        
+        List<MonthlyBillExportDTO> contractAreaDTOList = contractAreaList.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        
+        List<MonthlyBillExportDTO> employeeLooseDTOList = employeeLooseList.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+
+        ExcelWriter excelWriter = EasyExcel.write(outputStream)
+                .registerWriteHandler(ExcelUtil.getBillStyle())
+                .registerWriteHandler(ExcelUtil.getColumnWidthStyle())
+                .build();
+        
+        WriteSheet sheet1 = EasyExcel.writerSheet(0, "直营客户")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(directCustomerDTOList, sheet1);
+        
+        WriteSheet sheet2 = EasyExcel.writerSheet(1, "承包区")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(contractAreaDTOList, sheet2);
+        
+        WriteSheet sheet3 = EasyExcel.writerSheet(2, "业务员散件")
+                .head(MonthlyBillExportDTO.class)
+                .build();
+        excelWriter.write(employeeLooseDTOList, sheet3);
+        
+        excelWriter.finish();
+    }
+
+    private MonthlyBillExportDTO convertToDTO(MonthlyBill bill) {
+        return MonthlyBillExportDTO.builder()
+                .verifySign(bill.getVerifySign())
+                .billMonth(bill.getBillMonth() != null ? bill.getBillMonth().substring(5) + "月" : "")
+                .custName(bill.getCustName())
+                .receiveCount(bill.getReceiveCount())
+                .divideLine("")
+                .receivableAmount(bill.getReceivableAmount())
+                .specialRemark(bill.getSpecialRemark())
+                .transferType(bill.getTransferType())
+                .actualAmount(bill.getActualAmount())
+                .transferDate(bill.getTransferDate() != null ? bill.getTransferDate().toString() : "")
+                .remark(bill.getRemark())
+                .build();
     }
 }

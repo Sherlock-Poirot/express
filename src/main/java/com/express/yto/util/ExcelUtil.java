@@ -2,8 +2,14 @@ package com.express.yto.util;
 
 import com.alibaba.excel.write.handler.WriteHandler;
 import com.alibaba.excel.write.metadata.style.WriteCellStyle;
+import com.alibaba.excel.write.metadata.style.WriteFont;
 import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
+import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 
 /**
  * @author Detective
@@ -11,13 +17,64 @@ import org.apache.poi.ss.usermodel.BorderStyle;
  */
 public class ExcelUtil {
 
+    public static WriteHandler getBillStyle() {
+        return new HorizontalCellStyleStrategy(
+                getHeaderStyle(),
+                getContentStyle()
+        );
+    }
+
+    public static WriteHandler getColumnWidthStyle() {
+        return new LongestMatchColumnWidthStyleStrategy();
+    }
+
     public static WriteHandler getBorderStyle() {
         return new HorizontalCellStyleStrategy(
-                // 表头样式
                 getBorderStyleStyle(),
-                // 内容样式
                 getBorderStyleStyle()
         );
+    }
+
+    private static WriteCellStyle getHeaderStyle() {
+        WriteCellStyle style = new WriteCellStyle();
+        
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        
+        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
+        
+        style.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        
+        WriteFont font = new WriteFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 11);
+        font.setFontName("微软雅黑");
+        style.setWriteFont(font);
+        
+        return style;
+    }
+
+    private static WriteCellStyle getContentStyle() {
+        WriteCellStyle style = new WriteCellStyle();
+        
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        
+        style.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        
+        WriteFont font = new WriteFont();
+        font.setFontHeightInPoints((short) 11);
+        font.setFontName("微软雅黑");
+        style.setWriteFont(font);
+        
+        return style;
     }
 
     private static WriteCellStyle getBorderStyleStyle() {
@@ -26,13 +83,6 @@ public class ExcelUtil {
         style.setBorderBottom(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
-//        return (cell, head) -> {
-//            // 给单元格加 上下左右 全边框
-//            cell.setBorderTop(BorderStyle.THIN);      // 上边框
-//            cell.setBorderBottom(BorderStyle.THIN);   // 下边框
-//            cell.setBorderLeft(BorderStyle.THIN);     // 左边框
-//            cell.setBorderRight(BorderStyle.THIN);    // 右边框
-//        };
         return style;
     }
 }
