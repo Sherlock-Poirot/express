@@ -27,7 +27,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
     public IPage<MonthlyBill> search(MonthlyBillSearchInput input) {
         Page<MonthlyBill> page = new Page<>(input.getPageNo(), input.getPageSize());
         QueryWrapper<MonthlyBill> qw = new QueryWrapper<>();
-        qw.orderByDesc("create_time");
+        qw.eq("type", input.getType());
 
         if ("time".equals(input.getDimensionType())) {
             if (StringUtils.isNotBlank(input.getBillMonth())) {
@@ -37,6 +37,25 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
             if (StringUtils.isNotBlank(input.getCustomerName())) {
                 qw.like("cust_name", input.getCustomerName());
             }
+        }
+
+        if (StringUtils.isNotBlank(input.getSortField())) {
+            String sortField = input.getSortField();
+            if ("custName".equals(sortField)) {
+                sortField = "cust_name";
+            } else if ("receiveCount".equals(sortField)) {
+                sortField = "receive_count";
+            } else if ("receivableAmount".equals(sortField)) {
+                sortField = "receivable_amount";
+            }
+
+            if ("asc".equalsIgnoreCase(input.getSortOrder())) {
+                qw.orderByAsc(sortField);
+            } else {
+                qw.orderByDesc(sortField);
+            }
+        } else {
+            qw.orderByDesc("create_time");
         }
 
         return monthlyBillMapper.selectPage(page, qw);

@@ -85,26 +85,21 @@
 
   <select id="getContractTaobaoLimitedData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
     SELECT
-      t.emp_name AS custName,
+      c.emp_name AS custName,
       '' AS code,
       COUNT(*) AS receiveCount,
-      AVG(t.weight) AS avgWeight,
-      SUM(t.express_fee) AS receivableAmount,
-      t.emp_type AS custType
-    FROM (
-      SELECT DISTINCT
-        w.*,
-        c.emp_name
-      FROM
-        t_shop_emp c
-      INNER JOIN
-        t_waybill_detail w ON c.shop_name = w.settle_name
-      WHERE
-        w.emp_type IN ('淘宝', '限定')
-        AND (c.platform = REPLACE(w.material_type, '电子面单', '') OR c.platform = REPLACE(w.material_type, '新电子面单', ''))
-    ) t
+      AVG(w.weight) AS avgWeight,
+      SUM(w.express_fee) AS receivableAmount,
+      w.emp_type AS custType
+    FROM
+      t_shop_emp c
+    INNER JOIN
+      t_waybill_detail w ON c.shop_name = w.settle_name
+    WHERE
+      w.emp_type IN ('淘宝', '限定')
+      AND (c.platform = REPLACE(w.material_type, '电子面单', '') OR c.platform = REPLACE(w.material_type, '新电子面单', ''))
     GROUP BY
-      t.emp_name
+      c.emp_name, w.emp_type
   </select>
 
   <select id="getContractSpecialData" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
