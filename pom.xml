@@ -29,7 +29,34 @@
   <properties>
     <java.version>8</java.version>
   </properties>
+
+  <!-- 添加 Maven Central 仓库，用于获取 Sa-Token -->
+  <repositories>
+    <repository>
+      <id>maven-central</id>
+      <url>https://repo1.maven.org/maven2/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <dependencies>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -43,6 +70,17 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- Spring Boot Starter AOP -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
       <exclusions>
         <exclusion>
           <groupId>org.springframework.boot</groupId>
@@ -117,17 +155,43 @@
       <version>2.0.34</version>
     </dependency>
 
-    <!-- Spring AOP -->
+    <!-- BCrypt 密码加密 -->
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-aop</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-logging</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-crypto</artifactId>
+      <version>5.3.4.RELEASE</version>
     </dependency>
+
+    <!-- Sa-Token 权限认证核心包 -->
+    <dependency>
+      <groupId>cn.dev33</groupId>
+      <artifactId>sa-token-core</artifactId>
+      <version>1.31.0</version>
+    </dependency>
+
+    <!-- Sa-Token Redis支持 -->
+    <dependency>
+      <groupId>cn.dev33</groupId>
+      <artifactId>sa-token-dao-redis</artifactId>
+      <version>1.31.0</version>
+    </dependency>
+
+    <!-- Sa-Token Spring集成 -->
+    <!-- Sa-Token Spring Boot Starter 集成（推荐方式） -->
+    <dependency>
+      <groupId>cn.dev33</groupId>
+      <artifactId>sa-token-spring-boot-starter</artifactId>
+      <version>1.31.0</version>
+    </dependency>
+    
+    <!-- Sa-Token 单独Spring集成（备用，如上方不可用） -->
+    <!--
+    <dependency>
+      <groupId>cn.dev33</groupId>
+      <artifactId>sa-token-spring</artifactId>
+      <version>1.31.0</version>
+    </dependency>
+    -->
   </dependencies>
 
   <build>

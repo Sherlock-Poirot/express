@@ -10,7 +10,7 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: stn123456
+    password: Stn123456
 #    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=30000&socketTimeout=60000
 #    测试库
     url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=90000&socketTimeout=300000
@@ -41,6 +41,21 @@ mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
 
 # ==================================================
+# Sa-Token 权限认证配置
+# ==================================================
+sa-token:
+  token-name: satoken                    # Token名称（Cookie键名）
+  timeout: 2592000                      # Token有效期（秒），30天
+  active-timeout: -1                    # 无操作过期时间（秒），-1表示永不过期
+  is-concurrent: true                    # 是否允许多端登录（true允许，false禁止）
+  is-share: false                        # 是否共享Token（true共享，false独立）
+  token-style: uuid                     # Token生成风格（uuid/jwt等）
+  is-log: false                          # 是否打印Token日志
+  is-read-cookie: true                   # 是否读取Cookie中的Token
+  is-read-header: true                   # 是否读取Header中的Token
+  is-read-body: false                    # 是否读取Body中的Token
+
+# ==================================================
 # Log4j2 日志配置
 # ==================================================
 # 日志配置文件位置
@@ -49,3 +64,4 @@ logging:
   # 控制台日志级别（可选）
   level:
     root: INFO
+    cn.dev33.satoken: DEBUG              # Sa-Token日志级别
