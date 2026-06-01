@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -262,25 +263,37 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
         ExcelWriter excelWriter = EasyExcel.write(outputStream)
                 .registerWriteHandler(ExcelUtil.getBillStyle())
-                .registerWriteHandler(ExcelUtil.getColumnWidthStyle())
                 .build();
         
         WriteSheet sheet1 = EasyExcel.writerSheet(0, "直营客户")
                 .head(MonthlyBillExportDTO.class)
                 .build();
         excelWriter.write(directCustomerDTOList, sheet1);
+        setColumnWidths(excelWriter, 0);
         
         WriteSheet sheet2 = EasyExcel.writerSheet(1, "承包区")
                 .head(MonthlyBillExportDTO.class)
                 .build();
         excelWriter.write(contractAreaDTOList, sheet2);
+        setColumnWidths(excelWriter, 1);
         
         WriteSheet sheet3 = EasyExcel.writerSheet(2, "业务员散件")
                 .head(MonthlyBillExportDTO.class)
                 .build();
         excelWriter.write(employeeLooseDTOList, sheet3);
+        setColumnWidths(excelWriter, 2);
         
         excelWriter.finish();
+    }
+    
+    private void setColumnWidths(ExcelWriter excelWriter, int sheetIndex) {
+        Sheet sheet = excelWriter.writeContext().writeWorkbookHolder().getWorkbook().getSheetAt(sheetIndex);
+        sheet.setColumnWidth(0, 12 * 256);
+        sheet.setColumnWidth(1, 10 * 256);
+        sheet.setColumnWidth(2, 40 * 256);
+        for (int i = 3; i < 12; i++) {
+            sheet.setColumnWidth(i, 15 * 256);
+        }
     }
 
     private MonthlyBillExportDTO convertToDTO(MonthlyBill bill) {

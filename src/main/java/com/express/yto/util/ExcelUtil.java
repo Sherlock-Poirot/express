@@ -43,7 +43,7 @@ public class ExcelUtil {
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
         
-        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillForegroundColor(IndexedColors.SEA_GREEN.getIndex());
         style.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
         
         style.setHorizontalAlignment(HorizontalAlignment.CENTER);
@@ -53,6 +53,7 @@ public class ExcelUtil {
         font.setBold(true);
         font.setFontHeightInPoints((short) 11);
         font.setFontName("微软雅黑");
+        font.setColor(IndexedColors.WHITE.getIndex());
         style.setWriteFont(font);
         
         return style;
