@@ -97,7 +97,7 @@
       t_waybill_detail w ON c.shop_name = w.settle_name
     WHERE
       w.emp_type IN ('淘宝', '限定')
-      AND (c.platform = REPLACE(w.material_type, '电子面单', '') OR c.platform = REPLACE(w.material_type, '新电子面单', ''))
+      c.platform = w.material_type
     GROUP BY
       c.emp_name, w.emp_type
   </select>

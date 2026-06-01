@@ -56,6 +56,8 @@ public class WaybillAsyncService {
 
                 @Override
                 public void invoke(WaybillDetail data, AnalysisContext context) {
+                    data.setMaterialType(data.getMaterialType().replaceAll("电子面单",""));
+                    data.setMaterialType(data.getMaterialType().replaceAll("新电子面单",""));
                     cacheList.add(data);
                     totalCount[0]++;
 

@@ -56,10 +56,10 @@
     SELECT
       settle_name AS shopName,
       send_customer_name AS customerName,
-      REPLACE(material_type,'电子面单','') AS materialType
+      material_type AS materialType
     FROM
       t_waybill_detail
-    WHERE material_type NOT IN ('圆通新电子面单','COD电子面单')
+    WHERE material_type NOT IN ('圆通','COD')
     GROUP BY
       settle_name,
       send_customer_name,
@@ -81,7 +81,7 @@
       send_customer_name AS customerName
     FROM
       t_waybill_detail
-    WHERE material_type NOT IN ('圆通新电子面单','COD电子面单')
+    WHERE material_type NOT IN ('圆通','COD')
     GROUP BY
       send_customer,
       send_customer_name

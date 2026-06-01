@@ -125,7 +125,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
                     .findFirst()
                     .orElse(null);
             if (shop != null) {
-                String materialTypeWithSuffix = dto.getMaterialType() + "电子面单";
+                String materialTypeWithSuffix = dto.getMaterialType();
                 waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), materialTypeWithSuffix, shop.getCustomerName(), shop.getCustomerCode());
             }
         }
