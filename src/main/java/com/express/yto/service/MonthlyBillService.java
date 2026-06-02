@@ -17,4 +17,8 @@ public interface MonthlyBillService extends IService<MonthlyBill> {
     void exportSummary(MonthlyBillSearchInput input, OutputStream outputStream);
     
     void exportSummaryByBillMonth(String billMonth, OutputStream outputStream);
+
+    void exportDetail(String billMonth, String customerName, Integer type, OutputStream outputStream);
+
+    void exportAllDetail(String billMonth, OutputStream outputStream);
 }

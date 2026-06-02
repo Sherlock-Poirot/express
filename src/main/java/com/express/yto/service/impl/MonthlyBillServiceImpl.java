@@ -8,17 +8,28 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.MonthlyBillMapper;
+import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.MonthlyBillExportDTO;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.MonthlyBillSummaryDTO;
 import com.express.yto.model.MonthlyBill;
+import com.express.yto.model.WaybillDetail;
 import com.express.yto.service.MonthlyBillService;
 import com.express.yto.util.ExcelUtil;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -310,5 +321,154 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                 .transferDate(bill.getTransferDate() != null ? bill.getTransferDate().toString() : "")
                 .remark(bill.getRemark())
                 .build();
+    }
+
+    @Override
+    public void exportDetail(String billMonth, String customerName, Integer type, OutputStream outputStream) {
+        List<WaybillDetail> waybillDetailList;
+        if (type == 0) {
+            waybillDetailList = monthlyBillMapper.getDirectCustomerDetailList(billMonth, customerName);
+        } else if (type == 1) {
+            waybillDetailList = monthlyBillMapper.getEmployeeLooseDetailList(billMonth, customerName);
+        } else {
+            waybillDetailList = new ArrayList<>();
+        }
+
+        List<ContractShopExcelDTO> excelDTOList = waybillDetailList.stream()
+                .map(this::convertToContractShopExcelDTO)
+                .collect(Collectors.toList());
+
+        ExcelWriter excelWriter = EasyExcel.write(outputStream, ContractShopExcelDTO.class)
+                .registerWriteHandler(ExcelUtil.getBillStyle())
+                .build();
+        WriteSheet writeSheet = EasyExcel.writerSheet("明细").build();
+        excelWriter.write(excelDTOList, writeSheet);
+        excelWriter.finish();
+    }
+
+    private ContractShopExcelDTO convertToContractShopExcelDTO(WaybillDetail detail) {
+        return ContractShopExcelDTO.builder()
+                .id(detail.getWaybillNo())
+                .scanDate(detail.getScanTime())
+                .weight(detail.getWeight())
+                .province(detail.getProvince())
+                .destination(detail.getDestination())
+                .employeeName(detail.getSalesmanName())
+                .code(detail.getSendCustomer())
+                .name(detail.getSendCustomerName())
+                .shopId(detail.getSettleCode())
+                .shopName(detail.getSettleName())
+                .shopType(detail.getMaterialType())
+                .officeExtra(detail.getExtraFee())
+                .expense(detail.getExpressFee())
+                .build();
+    }
+
+    @Override
+    public void exportAllDetail(String billMonth, OutputStream outputStream) {
+        String tempDir = System.getProperty("user.dir") + File.separator + "temp_export_" + System.currentTimeMillis();
+        
+        try {
+            Path basePath = Paths.get(tempDir);
+            Files.createDirectories(basePath);
+            
+            String directCustomerDir = tempDir + File.separator + "直营客户";
+            String employeeDir = tempDir + File.separator + "业务员";
+            String contractAreaDir = tempDir + File.separator + "承包区";
+            
+            Files.createDirectories(Paths.get(directCustomerDir));
+            Files.createDirectories(Paths.get(employeeDir));
+            Files.createDirectories(Paths.get(contractAreaDir));
+            
+            List<MonthlyBill> billList = monthlyBillMapper.selectList(
+                    new QueryWrapper<MonthlyBill>()
+                            .eq("bill_month", billMonth)
+            );
+            
+            for (MonthlyBill bill : billList) {
+                String customerName = bill.getCustName();
+                if (StringUtils.isBlank(customerName)) {
+                    continue;
+                }
+                
+                List<WaybillDetail> detailList;
+                String targetDir;
+                String fileName;
+                
+                if (bill.getType() == 0) {
+                    detailList = monthlyBillMapper.getDirectCustomerDetailList(billMonth, customerName);
+                    targetDir = directCustomerDir;
+                    fileName = customerName + ".xlsx";
+                } else if (bill.getType() == 1) {
+                    detailList = monthlyBillMapper.getEmployeeLooseDetailList(billMonth, customerName);
+                    targetDir = employeeDir;
+                    fileName = customerName + ".xlsx";
+                } else {
+                    continue;
+                }
+                
+                if (detailList == null || detailList.isEmpty()) {
+                    continue;
+                }
+                
+                List<ContractShopExcelDTO> excelDTOList = detailList.stream()
+                        .map(this::convertToContractShopExcelDTO)
+                        .collect(Collectors.toList());
+                
+                String filePath = targetDir + File.separator + fileName;
+                EasyExcel.write(filePath, ContractShopExcelDTO.class)
+                        .registerWriteHandler(ExcelUtil.getBillStyle())
+                        .sheet("明细")
+                        .doWrite(excelDTOList);
+            }
+            
+            zipDirectory(tempDir, outputStream);
+            
+        } catch (Exception e) {
+            throw new RuntimeException("导出明细失败", e);
+        } finally {
+            deleteDirectory(new File(tempDir));
+        }
+    }
+
+    private void zipDirectory(String sourceDir, OutputStream outputStream) throws IOException {
+        try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
+            File sourceFile = new File(sourceDir);
+            addFileToZip(sourceFile, sourceFile.getName(), zos);
+        }
+    }
+
+    private void addFileToZip(File file, String entryName, ZipOutputStream zos) throws IOException {
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null) {
+                for (File childFile : files) {
+                    addFileToZip(childFile, entryName + "/" + childFile.getName(), zos);
+                }
+            }
+        } else {
+            try (FileInputStream fis = new FileInputStream(file)) {
+                ZipEntry zipEntry = new ZipEntry(entryName);
+                zos.putNextEntry(zipEntry);
+                
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = fis.read(buffer)) > 0) {
+                    zos.write(buffer, 0, length);
+                }
+                
+                zos.closeEntry();
+            }
+        }
+    }
+
+    private void deleteDirectory(File directory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                deleteDirectory(file);
+            }
+        }
+        directory.delete();
     }
 }

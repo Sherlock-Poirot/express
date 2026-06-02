@@ -123,4 +123,31 @@
   <delete id="deleteByBillMonth">
     DELETE FROM t_monthly_bill WHERE bill_month = #{billMonth}
   </delete>
+
+  <select id="getDirectCustomerDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      w.*
+    FROM
+      t_waybill_detail w
+    WHERE
+      (w.emp_type IS NULL OR w.emp_type = '')
+      AND w.send_customer_name IS NOT NULL
+      AND w.bill_month = #{billMonth}
+      AND w.send_customer_name = #{customerName}
+  </select>
+
+  <select id="getEmployeeLooseDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      w.*
+    FROM
+      t_contract_staff c
+    INNER JOIN
+      t_waybill_detail w ON c.real_name = w.salesman_name
+    WHERE
+      w.emp_type IS NOT NULL
+      AND w.emp_type != ''
+      AND c.staff_type = 1
+      AND w.bill_month = #{billMonth}
+      AND w.salesman_name = #{customerName}
+  </select>
 </mapper>

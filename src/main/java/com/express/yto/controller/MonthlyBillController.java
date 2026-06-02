@@ -64,12 +64,12 @@ public class MonthlyBillController {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             monthlyBillService.exportSummaryByBillMonth(billMonth, outputStream);
-            
+
             byte[] data = outputStream.toByteArray();
             String fileName = billMonth + "月账单汇总.xlsx";
             String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
                     .replaceAll("\\+", "%20");
-            
+
             response.reset();
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("UTF-8");
@@ -78,15 +78,47 @@ public class MonthlyBillController {
             response.setHeader("Pragma", "no-cache");
             response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
             response.setHeader("Content-Transfer-Encoding", "binary");
-            
+
             response.getOutputStream().write(data);
             response.getOutputStream().flush();
-            
+
             log.info("导出账单成功: {}", billMonth);
         } catch (Exception e) {
             log.error("导出账单失败: {}", billMonth, e);
             try {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "导出失败: " + e.getMessage());
+            } catch (IOException ioException) {
+                log.error("设置错误响应失败", ioException);
+            }
+        }
+    }
+
+    @ApiOperation("导出所有明细")
+    @GetMapping("/exportDetail")
+    public void exportDetail(
+            @RequestParam("billMonth") String billMonth,
+            HttpServletResponse response) {
+        try {
+            String fileName = billMonth + "_明细.zip";
+            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
+                    .replaceAll("\\+", "%20");
+
+            response.reset();
+            response.setContentType("application/zip");
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName);
+            response.setHeader("Pragma", "no-cache");
+            response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+            response.setHeader("Content-Transfer-Encoding", "binary");
+
+            monthlyBillService.exportAllDetail(billMonth, response.getOutputStream());
+            response.getOutputStream().flush();
+
+            log.info("导出所有明细成功: billMonth={}", billMonth);
+        } catch (Exception e) {
+            log.error("导出所有明细失败", e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "导出失败：" + e.getMessage());
             } catch (IOException ioException) {
                 log.error("设置错误响应失败", ioException);
             }
