@@ -271,13 +271,13 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
         excelWriter.write(directCustomerDTOList, sheet1);
         setColumnWidths(excelWriter, 0);
         
-        WriteSheet sheet2 = EasyExcel.writerSheet(1, "承包区")
+        WriteSheet sheet2 = EasyExcel.writerSheet(1, "业务员散件")
                 .head(MonthlyBillExportDTO.class)
                 .build();
         excelWriter.write(contractAreaDTOList, sheet2);
         setColumnWidths(excelWriter, 1);
         
-        WriteSheet sheet3 = EasyExcel.writerSheet(2, "业务员散件")
+        WriteSheet sheet3 = EasyExcel.writerSheet(2, "承包区")
                 .head(MonthlyBillExportDTO.class)
                 .build();
         excelWriter.write(employeeLooseDTOList, sheet3);
