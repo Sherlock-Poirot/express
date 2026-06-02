@@ -30,8 +30,8 @@ public class SaTokenConfigure implements WebMvcConfigurer, StpInterface {
     public void addInterceptors(InterceptorRegistry registry) {
         // 注册Sa-Token拦截器，校验规则为：登录认证 + 权限认证
         registry.addInterceptor(new SaInterceptor())
-                .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/login");  // 登录接口不需要认证
+                .addPathPatterns("/**")
+                .excludePathPatterns("/auth/login");  // 登录接口不需要认证
     }
 
     /**

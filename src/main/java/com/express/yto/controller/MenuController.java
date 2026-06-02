@@ -17,7 +17,7 @@ import java.util.List;
  * 菜单控制器
  */
 @RestController
-@RequestMapping("/api/menu")
+@RequestMapping("/menu")
 @SaCheckLogin
 public class MenuController {
 

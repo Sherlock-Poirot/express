@@ -85,12 +85,12 @@ INSERT IGNORE INTO t_sys_menu (parent_id, menu_name, menu_code, menu_type, path,
 (1, '角色管理', 'sys:role:manage', 2, '/system/role', 'el-icon-s-custom', 2),
 (1, '菜单管理', 'sys:menu:manage', 2, '/system/menu', 'el-icon-menu', 3),
 
--- 账单管理
-(0, '账单管理', NULL, 1, '/bill', 'el-icon-document', 2),
-(5, '账单列表', 'bill:list', 2, '/bill/list', 'el-icon-document-copy', 1),
-(5, '账单录入', 'bill:add', 2, '/bill/add', 'el-icon-plus', 2),
-(5, '账单审核', 'bill:audit', 2, '/bill/audit', 'el-icon-check', 3),
-(5, '账单导出', 'bill:export', 2, '/bill/export', 'el-icon-download', 4),
+-- 结算管理
+(0, '结算管理', NULL, 1, '/settlement', 'el-icon-document', 2),
+(5, '价格管理', 'settlement:price', 2, '/settlement/price', 'el-icon-price-tag', 1),
+(5, '店铺管理', 'settlement:shop', 2, '/settlement/shop', 'el-icon-shop', 2),
+(5, '账单管理', 'settlement:bill', 2, '/settlement/bill', 'el-icon-document', 3),
+(5, '员工管理', 'settlement:employee', 2, '/settlement/employee', 'el-icon-user', 4),
 
 -- 报表中心
 (0, '报表中心', NULL, 1, '/report', 'el-icon-s-data', 3),
@@ -104,6 +104,11 @@ SELECT 1, id FROM t_sys_menu;
 -- 使用标准的 BCrypt 加密值
 INSERT IGNORE INTO t_sys_user (username, password, real_name, status) VALUES
 ('admin', '$2a$10$dXJ3SW6G7P50lGmMkkm5lOZ7r5j5k4j3l2k1j0h9g8f7e6d5c4b3a2', '超级管理员', 1);
+
+-- 关联用户与角色
+-- admin用户关联ADMIN角色
+INSERT IGNORE INTO t_sys_user_role (user_id, role_id)
+SELECT u.id, r.id FROM t_sys_user u, t_sys_role r WHERE u.username = 'admin' AND r.role_code = 'ADMIN';
 
 -- 给财务主管赋权（除了系统管理相关）
 INSERT IGNORE INTO t_sys_role_menu (role_id, menu_id)
