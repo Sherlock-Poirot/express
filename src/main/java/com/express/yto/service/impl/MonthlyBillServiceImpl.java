@@ -7,18 +7,19 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.express.yto.dao.ContractStaffMapper;
 import com.express.yto.dao.MonthlyBillMapper;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.MonthlyBillExportDTO;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.MonthlyBillSummaryDTO;
+import com.express.yto.model.ContractStaff;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.model.WaybillDetail;
 import com.express.yto.service.MonthlyBillService;
 import com.express.yto.util.ExcelUtil;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -41,6 +42,10 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
     @Autowired
     private MonthlyBillMapper monthlyBillMapper;
+
+
+    @Autowired
+    private ContractStaffMapper contractStaffMapper;
 
     @Override
     public IPage<MonthlyBill> search(MonthlyBillSearchInput input) {
@@ -375,10 +380,14 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
             String directCustomerDir = tempDir + File.separator + "直营客户";
             String employeeDir = tempDir + File.separator + "业务员";
             String contractAreaDir = tempDir + File.separator + "承包区";
+            String contractDetailDir = contractAreaDir + File.separator + "散件淘宝限定";
+            String contractSpecialDir = contractAreaDir + File.separator + "特批";
             
             Files.createDirectories(Paths.get(directCustomerDir));
             Files.createDirectories(Paths.get(employeeDir));
             Files.createDirectories(Paths.get(contractAreaDir));
+            Files.createDirectories(Paths.get(contractDetailDir));
+            Files.createDirectories(Paths.get(contractSpecialDir));
             
             List<MonthlyBill> billList = monthlyBillMapper.selectList(
                     new QueryWrapper<MonthlyBill>()
@@ -419,6 +428,76 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                 EasyExcel.write(filePath, ContractShopExcelDTO.class)
                         .registerWriteHandler(ExcelUtil.getBillStyle())
                         .sheet("明细")
+                        .doWrite(excelDTOList);
+            }
+
+            List<ContractStaff> staffList = contractStaffMapper.selectList(new QueryWrapper<ContractStaff>()
+                    .select("contract_name")
+                    .eq("staff_type", 0)
+                    .groupBy("contract_name"));
+            for (ContractStaff staff : staffList) {
+                String contractName = staff.getContractName();
+                if (StringUtils.isBlank(contractName)) {
+                    continue;
+                }
+
+                String filePath = contractDetailDir + File.separator + contractName + ".xlsx";
+                
+                try (ExcelWriter excelWriter = EasyExcel.write(filePath, ContractShopExcelDTO.class)
+                        .registerWriteHandler(ExcelUtil.getBillStyle())
+                        .build()) {
+                    
+                    List<WaybillDetail> looseList = monthlyBillMapper.getContractLooseDetailList(billMonth, contractName);
+                    if (looseList != null && !looseList.isEmpty()) {
+                        List<ContractShopExcelDTO> looseDTOList = looseList.stream()
+                                .map(this::convertToContractShopExcelDTO)
+                                .collect(Collectors.toList());
+                        WriteSheet looseSheet = EasyExcel.writerSheet("散件").build();
+                        excelWriter.write(looseDTOList, looseSheet);
+                    }
+
+                    List<WaybillDetail> taobaoList = monthlyBillMapper.getContractTaobaoDetailList(billMonth, contractName);
+                    if (taobaoList != null && !taobaoList.isEmpty()) {
+                        List<ContractShopExcelDTO> taobaoDTOList = taobaoList.stream()
+                                .map(this::convertToContractShopExcelDTO)
+                                .collect(Collectors.toList());
+                        WriteSheet taobaoSheet = EasyExcel.writerSheet("淘宝").build();
+                        excelWriter.write(taobaoDTOList, taobaoSheet);
+                    }
+
+                    List<WaybillDetail> limitedList = monthlyBillMapper.getContractLimitedDetailList(billMonth, contractName);
+                    if (limitedList != null && !limitedList.isEmpty()) {
+                        List<ContractShopExcelDTO> limitedDTOList = limitedList.stream()
+                                .map(this::convertToContractShopExcelDTO)
+                                .collect(Collectors.toList());
+                        WriteSheet limitedSheet = EasyExcel.writerSheet("限定").build();
+                        excelWriter.write(limitedDTOList, limitedSheet);
+                    }
+                }
+            }
+            
+            List<MonthlyBillSummaryDTO> specialCustomerList = monthlyBillMapper.getContractSpecialCustomerList();
+            for (MonthlyBillSummaryDTO customer : specialCustomerList) {
+                String custName = customer.getCustName();
+                String empName = customer.getEmpName();
+                if (StringUtils.isBlank(custName) || StringUtils.isBlank(empName)) {
+                    continue;
+                }
+
+                List<WaybillDetail> detailList = monthlyBillMapper.getContractSpecialDetailList(billMonth, custName);
+                if (detailList == null || detailList.isEmpty()) {
+                    continue;
+                }
+
+                List<ContractShopExcelDTO> excelDTOList = detailList.stream()
+                        .map(this::convertToContractShopExcelDTO)
+                        .collect(Collectors.toList());
+
+                String fileName = empName + "特批-" + custName + ".xlsx";
+                String filePath = contractSpecialDir + File.separator + fileName;
+                EasyExcel.write(filePath, ContractShopExcelDTO.class)
+                        .registerWriteHandler(ExcelUtil.getBillStyle())
+                        .sheet("特批")
                         .doWrite(excelDTOList);
             }
             

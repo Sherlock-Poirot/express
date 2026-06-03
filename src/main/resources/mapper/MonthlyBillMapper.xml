@@ -150,4 +150,124 @@
       AND w.bill_month = #{billMonth}
       AND w.salesman_name = #{customerName}
   </select>
+
+  <select id="getContractLooseDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      w.waybill_no,
+      w.scan_time,
+      w.weight,
+      w.province,
+      w.destination,
+      w.salesman_name,
+      w.send_customer,
+      w.send_customer_name,
+      w.settle_code,
+      w.settle_name,
+      w.material_type,
+      w.extra_fee,
+      w.express_fee,
+      w.bill_month
+    FROM
+      t_contract_staff c
+    INNER JOIN
+      t_waybill_detail w ON c.real_name = w.salesman_name
+    WHERE
+      w.emp_type = '散件'
+      AND c.staff_type = 0
+      AND w.bill_month = #{billMonth}
+      AND c.contract_name = #{contractName}
+  </select>
+
+  <select id="getContractTaobaoDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      w.waybill_no,
+      w.scan_time,
+      w.weight,
+      w.province,
+      w.destination,
+      w.salesman_name,
+      w.send_customer,
+      w.send_customer_name,
+      w.settle_code,
+      w.settle_name,
+      w.material_type,
+      w.extra_fee,
+      w.express_fee,
+      w.bill_month
+    FROM
+      t_shop_emp c
+    INNER JOIN
+      t_waybill_detail w ON c.shop_name = w.settle_name
+    WHERE
+      w.emp_type = '淘宝'
+      AND c.platform = w.material_type
+      AND w.bill_month = #{billMonth}
+      AND c.emp_name = #{empName}
+  </select>
+
+  <select id="getContractLimitedDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      w.waybill_no,
+      w.scan_time,
+      w.weight,
+      w.province,
+      w.destination,
+      w.salesman_name,
+      w.send_customer,
+      w.send_customer_name,
+      w.settle_code,
+      w.settle_name,
+      w.material_type,
+      w.extra_fee,
+      w.express_fee,
+      w.bill_month
+    FROM
+      t_shop_emp c
+    INNER JOIN
+      t_waybill_detail w ON c.shop_name = w.settle_name
+    WHERE
+      w.emp_type = '限定'
+      AND c.platform = w.material_type
+      AND w.bill_month = #{billMonth}
+      AND c.emp_name = #{empName}
+  </select>
+
+  <select id="getContractSpecialCustomerList" resultType="com.express.yto.dto.MonthlyBillSummaryDTO">
+    SELECT
+      cust_name,
+      emp_name
+    FROM
+      t_shop_emp
+    WHERE
+      emp_type = '特批'
+    GROUP BY
+      cust_name,
+      emp_name
+  </select>
+
+  <select id="getContractSpecialDetailList" resultType="com.express.yto.model.WaybillDetail">
+    SELECT
+      t2.waybill_no,
+      t2.scan_time,
+      t2.weight,
+      t2.province,
+      t2.destination,
+      t2.salesman_name,
+      t2.send_customer,
+      t2.send_customer_name,
+      t2.settle_code,
+      t2.settle_name,
+      t2.material_type,
+      t2.extra_fee,
+      t2.express_fee,
+      t2.bill_month
+    FROM
+      t_shop_emp t1
+    INNER JOIN
+      t_waybill_detail t2 ON t1.shop_name = t2.settle_name
+    WHERE
+      t2.emp_type = '特批'
+      AND t1.cust_name = #{custName}
+      AND t2.bill_month = #{billMonth}
+  </select>
 </mapper>

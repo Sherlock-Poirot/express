@@ -26,4 +26,14 @@ public interface MonthlyBillMapper extends BaseMapper<MonthlyBill> {
     List<WaybillDetail> getDirectCustomerDetailList(@Param("billMonth") String billMonth, @Param("customerName") String customerName);
 
     List<WaybillDetail> getEmployeeLooseDetailList(@Param("billMonth") String billMonth, @Param("customerName") String customerName);
+
+    List<WaybillDetail> getContractLooseDetailList(@Param("billMonth") String billMonth, @Param("contractName") String contractName);
+
+    List<WaybillDetail> getContractTaobaoDetailList(@Param("billMonth") String billMonth, @Param("empName") String empName);
+
+    List<WaybillDetail> getContractLimitedDetailList(@Param("billMonth") String billMonth, @Param("empName") String empName);
+
+    List<MonthlyBillSummaryDTO> getContractSpecialCustomerList();
+
+    List<WaybillDetail> getContractSpecialDetailList(@Param("billMonth") String billMonth, @Param("custName") String custName);
 }
