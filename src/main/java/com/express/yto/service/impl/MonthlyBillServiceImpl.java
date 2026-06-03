@@ -7,13 +7,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.express.yto.dao.ContractStaffMapper;
 import com.express.yto.dao.MonthlyBillMapper;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.MonthlyBillExportDTO;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.MonthlyBillSummaryDTO;
-import com.express.yto.model.ContractStaff;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.model.WaybillDetail;
 import com.express.yto.service.MonthlyBillService;
@@ -43,9 +41,6 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
     @Autowired
     private MonthlyBillMapper monthlyBillMapper;
-
-    @Autowired
-    private ContractStaffMapper contractStaffMapper;
 
     @Override
     public IPage<MonthlyBill> search(MonthlyBillSearchInput input) {
@@ -386,7 +381,8 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
             Files.createDirectories(Paths.get(contractAreaDir));
             
             List<MonthlyBill> billList = monthlyBillMapper.selectList(
-                    new QueryWrapper<MonthlyBill>().eq("bill_month", billMonth)
+                    new QueryWrapper<MonthlyBill>()
+                            .eq("bill_month", billMonth)
             );
             
             for (MonthlyBill bill : billList) {
@@ -424,18 +420,6 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                         .registerWriteHandler(ExcelUtil.getBillStyle())
                         .sheet("明细")
                         .doWrite(excelDTOList);
-            }
-
-            List<ContractStaff> staffList = contractStaffMapper.selectList(new QueryWrapper<ContractStaff>()
-                    .eq("staff_type",0).groupBy("contract_name"));
-            for (ContractStaff staff : staffList){
-                // 散件
-
-                // 淘宝
-
-                // 限定
-
-                // 特批
             }
             
             zipDirectory(tempDir, outputStream);
