@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -310,6 +311,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
         for (int i = 3; i < 12; i++) {
             sheet.setColumnWidth(i, 15 * 256);
         }
+        sheet.setColumnWidth(12, 20 * 256);
     }
 
     private MonthlyBillExportDTO convertToDTO(MonthlyBill bill) {
@@ -369,6 +371,66 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                 .build();
     }
 
+    private ContractShopExcelDTO convertToContractShopExcelDTOWithAdd3(WaybillDetail detail) {
+        BigDecimal expressFee = detail.getExpressFee();
+        BigDecimal addedFee = expressFee != null ? expressFee.add(new BigDecimal("3")) : new BigDecimal("3");
+        return ContractShopExcelDTO.builder()
+                .id(detail.getWaybillNo())
+                .scanDate(detail.getScanTime())
+                .weight(detail.getWeight())
+                .province(detail.getProvince())
+                .destination(detail.getDestination())
+                .employeeName(detail.getSalesmanName())
+                .code(detail.getSendCustomer())
+                .name(detail.getSendCustomerName())
+                .shopId(detail.getSettleCode())
+                .shopName(detail.getSettleName())
+                .shopType(detail.getMaterialType())
+                .officeExtra(detail.getExtraFee())
+                .expense(addedFee.setScale(3, BigDecimal.ROUND_HALF_UP))
+                .build();
+    }
+
+    private void addSummaryRow(List<ContractShopExcelDTO> list) {
+        BigDecimal totalExpense = list.stream()
+                .map(dto -> dto.getExpense() != null ? dto.getExpense() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        ContractShopExcelDTO summaryRow = ContractShopExcelDTO.builder()
+                .id("总计")
+                .expense(totalExpense.setScale(3, BigDecimal.ROUND_HALF_UP))
+                .build();
+        list.add(summaryRow);
+    }
+
+    private void addContractSummaryRows(List<ContractShopExcelDTO> list) {
+        BigDecimal totalExpense = list.stream()
+                .map(dto -> dto.getExpense() != null ? dto.getExpense() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        int count = list.size();
+        BigDecimal prepay = new BigDecimal(count * 3);
+        BigDecimal payable = totalExpense.subtract(prepay);
+        
+        ContractShopExcelDTO totalRow = ContractShopExcelDTO.builder()
+                .id("总计")
+                .expense(totalExpense.setScale(3, BigDecimal.ROUND_HALF_UP))
+                .build();
+        list.add(totalRow);
+        
+        ContractShopExcelDTO prepayRow = ContractShopExcelDTO.builder()
+                .id("面单预付")
+                .expense(prepay.setScale(3, BigDecimal.ROUND_HALF_UP))
+                .build();
+        list.add(prepayRow);
+        
+        ContractShopExcelDTO payableRow = ContractShopExcelDTO.builder()
+                .id("应付合计")
+                .expense(payable.setScale(3, BigDecimal.ROUND_HALF_UP))
+                .build();
+        list.add(payableRow);
+    }
+
     @Override
     public void exportAllDetail(String billMonth, OutputStream outputStream) {
         String tempDir = System.getProperty("user.dir") + File.separator + "temp_export_" + System.currentTimeMillis();
@@ -424,6 +486,8 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                         .map(this::convertToContractShopExcelDTO)
                         .collect(Collectors.toList());
                 
+                addSummaryRow(excelDTOList);
+                
                 String filePath = targetDir + File.separator + fileName;
                 EasyExcel.write(filePath, ContractShopExcelDTO.class)
                         .registerWriteHandler(ExcelUtil.getBillStyle())
@@ -450,8 +514,9 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     List<WaybillDetail> looseList = monthlyBillMapper.getContractLooseDetailList(billMonth, contractName);
                     if (looseList != null && !looseList.isEmpty()) {
                         List<ContractShopExcelDTO> looseDTOList = looseList.stream()
-                                .map(this::convertToContractShopExcelDTO)
+                                .map(this::convertToContractShopExcelDTOWithAdd3)
                                 .collect(Collectors.toList());
+                        addContractSummaryRows(looseDTOList);
                         WriteSheet looseSheet = EasyExcel.writerSheet("散件").build();
                         excelWriter.write(looseDTOList, looseSheet);
                     }
@@ -459,8 +524,9 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     List<WaybillDetail> taobaoList = monthlyBillMapper.getContractTaobaoDetailList(billMonth, contractName);
                     if (taobaoList != null && !taobaoList.isEmpty()) {
                         List<ContractShopExcelDTO> taobaoDTOList = taobaoList.stream()
-                                .map(this::convertToContractShopExcelDTO)
+                                .map(this::convertToContractShopExcelDTOWithAdd3)
                                 .collect(Collectors.toList());
+                        addContractSummaryRows(taobaoDTOList);
                         WriteSheet taobaoSheet = EasyExcel.writerSheet("淘宝").build();
                         excelWriter.write(taobaoDTOList, taobaoSheet);
                     }
@@ -468,8 +534,9 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     List<WaybillDetail> limitedList = monthlyBillMapper.getContractLimitedDetailList(billMonth, contractName);
                     if (limitedList != null && !limitedList.isEmpty()) {
                         List<ContractShopExcelDTO> limitedDTOList = limitedList.stream()
-                                .map(this::convertToContractShopExcelDTO)
+                                .map(this::convertToContractShopExcelDTOWithAdd3)
                                 .collect(Collectors.toList());
+                        addContractSummaryRows(limitedDTOList);
                         WriteSheet limitedSheet = EasyExcel.writerSheet("限定").build();
                         excelWriter.write(limitedDTOList, limitedSheet);
                     }
@@ -492,6 +559,8 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                 List<ContractShopExcelDTO> excelDTOList = detailList.stream()
                         .map(this::convertToContractShopExcelDTO)
                         .collect(Collectors.toList());
+
+                addSummaryRow(excelDTOList);
 
                 String fileName = empName + "特批-" + custName + ".xlsx";
                 String filePath = contractSpecialDir + File.separator + fileName;

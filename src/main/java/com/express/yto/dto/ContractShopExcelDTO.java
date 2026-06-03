@@ -2,6 +2,9 @@ package com.express.yto.dto;
 
 import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
+import com.alibaba.excel.annotation.format.NumberFormat;
+import com.alibaba.excel.annotation.write.style.ColumnWidth;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
