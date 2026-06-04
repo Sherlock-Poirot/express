@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ShopService extends IService<Shop> {
 
-    IPage<ShopEmp> search(String code, String name, String empName, Integer pageNo, Integer pageSize);
+    IPage<ShopEmp> search(String code, String name, String empName, String shopName, Integer pageNo, Integer pageSize);
 
     void batchDelete(List<Integer> ids);
 

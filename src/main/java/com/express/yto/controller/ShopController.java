@@ -37,8 +37,9 @@ public class ShopController {
     public RestResult<IPage<ShopEmp>> search(@RequestParam(value = "code", required = false) String code,
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "empName", required = false) String empName,
+            @RequestParam(value = "shopName", required = false) String shopName,
             @RequestParam("pageNo") Integer pageNo, @RequestParam("pageSize") Integer pageSize) {
-        return RestResult.ok(shopService.search(code, name, empName, pageNo, pageSize));
+        return RestResult.ok(shopService.search(code, name, empName, shopName, pageNo, pageSize));
     }
 
     @PostMapping("/batchDelete")

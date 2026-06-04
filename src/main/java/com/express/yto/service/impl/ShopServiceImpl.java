@@ -33,7 +33,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
     private ShopEmpMapper shopEmpMapper;
 
     @Override
-    public IPage<ShopEmp> search(String code, String name, String empName, Integer pageNo, Integer pageSize) {
+    public IPage<ShopEmp> search(String code, String name, String empName, String shopName, Integer pageNo, Integer pageSize) {
         Page<ShopEmp> page = new Page<>(pageNo, pageSize);
         QueryWrapper<ShopEmp> qw = new QueryWrapper<>();
         if (StringUtils.isNotBlank(code)) {
@@ -44,6 +44,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements Sh
         }
         if (StringUtils.isNotBlank(empName)) {
             qw.like("emp_name", empName);
+        }
+        if (StringUtils.isNotBlank(shopName)) {
+            qw.like("shop_name", shopName);
         }
         qw.orderByDesc("id");
         return shopEmpMapper.selectPage(page, qw);
