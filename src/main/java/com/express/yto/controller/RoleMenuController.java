@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.express.yto.dto.MenuTreeDTO;
 import com.express.yto.dto.RestResult;
+import com.express.yto.dto.RoleMenuInput;
 import com.express.yto.service.RoleMenuService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -28,9 +29,6 @@ public class RoleMenuController {
     @Autowired
     private RoleMenuService roleMenuService;
 
-    /**
-     * 获取角色已分配的菜单ID列表
-     */
     @ApiOperation("获取角色已分配的菜单ID列表")
     @GetMapping("/menu-ids/{roleId}")
     public RestResult<List<Long>> getMenuIdsByRoleId(@PathVariable Long roleId) {
@@ -38,9 +36,6 @@ public class RoleMenuController {
         return RestResult.ok(menuIds);
     }
 
-    /**
-     * 获取角色已分配的菜单树
-     */
     @ApiOperation("获取角色已分配的菜单树")
     @GetMapping("/menus/{roleId}")
     public RestResult<List<MenuTreeDTO>> getMenusByRoleId(@PathVariable Long roleId) {
@@ -48,42 +43,27 @@ public class RoleMenuController {
         return RestResult.ok(menus);
     }
 
-    /**
-     * 给角色分配菜单（覆盖式，会删除原有菜单后重新分配）
-     */
     @ApiOperation("给角色分配菜单（覆盖式）")
-    @PostMapping("/assign/{roleId}")
+    @PostMapping("/assign")
     @SaCheckRole("ADMIN")
-    public RestResult<String> assignMenusToRole(
-            @PathVariable Long roleId,
-            @RequestBody List<Long> menuIds) {
-        roleMenuService.assignMenusToRole(roleId, menuIds);
+    public RestResult<String> assignMenusToRole(@RequestBody RoleMenuInput input) {
+        roleMenuService.assignMenusToRole(input.getRoleId(), input.getMenuIds());
         return RestResult.ok("分配成功");
     }
 
-    /**
-     * 给角色添加菜单（追加式，只添加不存在的菜单）
-     */
     @ApiOperation("给角色添加菜单（追加式）")
-    @PostMapping("/add/{roleId}")
+    @PostMapping("/add")
     @SaCheckRole("ADMIN")
-    public RestResult<String> addMenusToRole(
-            @PathVariable Long roleId,
-            @RequestBody List<Long> menuIds) {
-        roleMenuService.addMenusToRole(roleId, menuIds);
+    public RestResult<String> addMenusToRole(@RequestBody RoleMenuInput input) {
+        roleMenuService.addMenusToRole(input.getRoleId(), input.getMenuIds());
         return RestResult.ok("添加成功");
     }
 
-    /**
-     * 移除角色的菜单
-     */
     @ApiOperation("移除角色的菜单")
-    @PostMapping("/remove/{roleId}")
+    @PostMapping("/remove")
     @SaCheckRole("ADMIN")
-    public RestResult<String> removeMenusFromRole(
-            @PathVariable Long roleId,
-            @RequestBody List<Long> menuIds) {
-        roleMenuService.removeMenusFromRole(roleId, menuIds);
+    public RestResult<String> removeMenusFromRole(@RequestBody RoleMenuInput input) {
+        roleMenuService.removeMenusFromRole(input.getRoleId(), input.getMenuIds());
         return RestResult.ok("移除成功");
     }
 }
