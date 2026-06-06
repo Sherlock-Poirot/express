@@ -80,7 +80,6 @@ public class WaybillAsyncService {
                             .extraFee(data.getExtraFee())
                             .expressFee(data.getExpressFee())
                             .billMonth(data.getBillMonth())
-                            .taskNo(taskNo)
                             .build();
                     originalCacheList.add(original);
 

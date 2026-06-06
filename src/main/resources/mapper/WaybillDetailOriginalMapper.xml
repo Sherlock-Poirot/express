@@ -19,20 +19,19 @@
         <result column="bill_month" jdbcType="VARCHAR" property="billMonth"/>
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
         <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
-        <result column="task_no" jdbcType="VARCHAR" property="taskNo"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id, waybill_no, scan_time, weight, province, destination, salesman_name,
         send_customer, send_customer_name, settle_code, settle_name, material_type,
-        extra_fee, express_fee, bill_month, create_time, update_time, task_no
+        extra_fee, express_fee, bill_month, create_time, update_time
     </sql>
 
     <insert id="insertBatch">
         INSERT INTO t_waybill_detail_original (
             waybill_no, scan_time, weight, province, destination, salesman_name,
             send_customer, send_customer_name, settle_code, settle_name, material_type,
-            extra_fee, express_fee, bill_month, task_no
+            extra_fee, express_fee, bill_month
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
@@ -40,7 +39,7 @@
                 #{item.destination}, #{item.salesmanName}, #{item.sendCustomer},
                 #{item.sendCustomerName}, #{item.settleCode}, #{item.settleName},
                 #{item.materialType}, #{item.extraFee}, #{item.expressFee},
-                #{item.billMonth}, #{item.taskNo}
+                #{item.billMonth}
             )
         </foreach>
     </insert>

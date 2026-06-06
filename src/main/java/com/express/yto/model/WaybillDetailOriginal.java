@@ -89,10 +89,6 @@ public class WaybillDetailOriginal {
     @ExcelIgnore
     private LocalDateTime updateTime;
 
-    @TableField(value = "task_no")
-    @ExcelIgnore
-    private String taskNo;
-
     public static final String COL_ID = "id";
     public static final String COL_WAYBILL_NO = "waybill_no";
     public static final String COL_SCAN_TIME = "scan_time";
@@ -110,5 +106,5 @@ public class WaybillDetailOriginal {
     public static final String COL_BILL_MONTH = "bill_month";
     public static final String COL_CREATE_TIME = "create_time";
     public static final String COL_UPDATE_TIME = "update_time";
-    public static final String COL_TASK_NO = "task_no";
+
 }
