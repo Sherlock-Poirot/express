@@ -2,11 +2,14 @@ package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.express.yto.dto.RestResult;
+import com.express.yto.dto.StaffInput;
 import com.express.yto.model.ContractStaff;
 import com.express.yto.service.ContractStaffService;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,5 +31,19 @@ public class StaffController {
             @RequestParam(required = false) String phone,
             @RequestParam("pageNo") Integer pageNo, @RequestParam("pageSize") Integer pageSize) {
         return RestResult.ok(contractStaffService.search(staffName, phone, pageNo, pageSize));
+    }
+
+    @PostMapping("/add")
+    @ApiOperation("新增员工")
+    public RestResult<String> add(@RequestBody StaffInput input) {
+        contractStaffService.add(input);
+        return RestResult.ok("操作成功");
+    }
+
+    @PostMapping("/update")
+    @ApiOperation("编辑员工")
+    public RestResult<String> update(@RequestBody StaffInput input) {
+        contractStaffService.update(input);
+        return RestResult.ok("操作成功");
     }
 }

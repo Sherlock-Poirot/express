@@ -13,7 +13,7 @@ spring:
     password: stn123456
 #    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=30000&socketTimeout=60000
 #    测试库
-    url: jdbc:mysql://localhost:3306/express_test?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=90000&socketTimeout=300000
+    url: jdbc:mysql://localhost:3306/express_yto?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&useSSL=false&allowMultiQueries=true&autoReconnect=true&maxReconnects=3&connectTimeout=90000&socketTimeout=300000
     druid:
       # 连接池配置
       max-active: 50          # 最大活跃连接数（默认8，改成50）
