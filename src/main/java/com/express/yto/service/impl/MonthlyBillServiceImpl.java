@@ -27,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -435,6 +437,9 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
     public void exportAllDetail(String billMonth, OutputStream outputStream) {
         String tempDir = System.getProperty("user.dir") + File.separator + "temp_export_" + System.currentTimeMillis();
         
+        // 获取月份描述（如 "5月"）
+        String monthDesc = convertToMonthDesc(billMonth);
+        
         try {
             Path basePath = Paths.get(tempDir);
             Files.createDirectories(basePath);
@@ -469,11 +474,11 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                 if (bill.getType() == 0) {
                     detailList = monthlyBillMapper.getDirectCustomerDetailList(billMonth, customerName);
                     targetDir = directCustomerDir;
-                    fileName = customerName + ".xlsx";
+                    fileName = customerName + monthDesc + ".xlsx";
                 } else if (bill.getType() == 1) {
                     detailList = monthlyBillMapper.getEmployeeLooseDetailList(billMonth, customerName);
                     targetDir = employeeDir;
-                    fileName = customerName + ".xlsx";
+                    fileName = customerName + monthDesc + ".xlsx";
                 } else {
                     continue;
                 }
@@ -505,7 +510,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     continue;
                 }
 
-                String filePath = contractDetailDir + File.separator + contractName + ".xlsx";
+                String filePath = contractDetailDir + File.separator + contractName + monthDesc + ".xlsx";
                 
                 try (ExcelWriter excelWriter = EasyExcel.write(filePath, ContractShopExcelDTO.class)
                         .registerWriteHandler(ExcelUtil.getBillStyle())
@@ -562,7 +567,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
                 addSummaryRow(excelDTOList);
 
-                String fileName = empName + "特批-" + custName + ".xlsx";
+                String fileName = empName + "特批-" + custName + monthDesc + ".xlsx";
                 String filePath = contractSpecialDir + File.separator + fileName;
                 EasyExcel.write(filePath, ContractShopExcelDTO.class)
                         .registerWriteHandler(ExcelUtil.getBillStyle())
@@ -618,5 +623,18 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
             }
         }
         directory.delete();
+    }
+
+    private String convertToMonthDesc(String billMonth) {
+        if (StringUtils.isBlank(billMonth)) {
+            return "";
+        }
+        try {
+            YearMonth yearMonth = YearMonth.parse(billMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
+            int month = yearMonth.getMonthValue();
+            return month + "月";
+        } catch (Exception e) {
+            return "";
+        }
     }
 }
