@@ -1,0 +1,21 @@
+CREATE TABLE `t_daily_bill` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `waybill_no` VARCHAR(64) COMMENT '运单号',
+    `customer_code` VARCHAR(64) COMMENT '客户编码',
+    `customer_name` VARCHAR(255) COMMENT '客户名称',
+    `charge_weight` DECIMAL(10,2) COMMENT '计费重量',
+    `total_amount` DECIMAL(12,2) COMMENT '总金额',
+    `merchant_code` VARCHAR(64) COMMENT '商家编码',
+    `merchant_name` VARCHAR(255) COMMENT '商家名称',
+    `settle_province` VARCHAR(100) COMMENT '结算目的地省份',
+    `charge_date` DATE COMMENT '成功计费日期(YYYY-MM-DD)',
+    `rebate_amount` DECIMAL(12,2) COMMENT '返利金额',
+    `customer_fee` DECIMAL(12,2) COMMENT '客户运费',
+    `import_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '导入时间',
+    `bill_month` VARCHAR(7) COMMENT '账单月份',
+    PRIMARY KEY (`id`) USING BTREE,
+    KEY `idx_waybill_no` (`waybill_no`) USING BTREE,
+    KEY `idx_customer_code` (`customer_code`) USING BTREE,
+    KEY `idx_charge_date` (`charge_date`) USING BTREE,
+    KEY `idx_bill_month` (`bill_month`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin ROW_FORMAT=DYNAMIC COMMENT='每日账单表-量本利计算';

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.DailyBillMapper">
+
+    <resultMap id="BaseResultMap" type="com.express.yto.model.DailyBill">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="waybill_no" jdbcType="VARCHAR" property="waybillNo"/>
+        <result column="customer_code" jdbcType="VARCHAR" property="customerCode"/>
+        <result column="customer_name" jdbcType="VARCHAR" property="customerName"/>
+        <result column="charge_weight" jdbcType="DECIMAL" property="chargeWeight"/>
+        <result column="total_amount" jdbcType="DECIMAL" property="totalAmount"/>
+        <result column="merchant_code" jdbcType="VARCHAR" property="merchantCode"/>
+        <result column="merchant_name" jdbcType="VARCHAR" property="merchantName"/>
+        <result column="settle_province" jdbcType="VARCHAR" property="settleProvince"/>
+        <result column="charge_date" jdbcType="DATE" property="chargeDate"/>
+        <result column="rebate_amount" jdbcType="DECIMAL" property="rebateAmount"/>
+        <result column="customer_fee" jdbcType="DECIMAL" property="customerFee"/>
+        <result column="import_time" jdbcType="DATETIME" property="importTime"/>
+        <result column="bill_month" jdbcType="VARCHAR" property="billMonth"/>
+    </resultMap>
+
+    <insert id="insertBatch">
+        INSERT INTO t_daily_bill (
+            waybill_no, customer_code, customer_name, charge_weight, total_amount,
+            merchant_code, merchant_name, settle_province, charge_date,
+            rebate_amount, customer_fee, import_time, bill_month
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.waybillNo}, #{item.customerCode}, #{item.customerName}, #{item.chargeWeight}, #{item.totalAmount},
+                #{item.merchantCode}, #{item.merchantName}, #{item.settleProvince}, #{item.chargeDate},
+                #{item.rebateAmount}, #{item.customerFee}, NOW(), #{item.billMonth}
+            )
+        </foreach>
+    </insert>
+</mapper>
