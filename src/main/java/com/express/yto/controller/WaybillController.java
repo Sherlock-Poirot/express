@@ -46,7 +46,7 @@ public class WaybillController {
 
     @PostMapping("/clean")
     @ApiOperation("清洗数据")
-    public RestResult<String> cleanData(@RequestParam(value = "date",required = false) LocalDate date){
+    public RestResult<String> cleanData(@RequestParam(value = "date",required = false) String date){
         // TODO 后期要改必须得是异步请求
         waybillDetailService.cleanData(date);
         return RestResult.ok("操作成功");
@@ -54,7 +54,7 @@ public class WaybillController {
 
     @PostMapping("/calculate")
     @ApiOperation("计算")
-    public RestResult<String> calculateBill(@RequestParam(value = "date",required = false) LocalDate date){
+    public RestResult<String> calculateBill(@RequestParam(value = "date",required = false) String date){
         // TODO 后期要改必须得是异步请求
         waybillDetailService.calculateBill(date);
         return RestResult.ok("操作成功");

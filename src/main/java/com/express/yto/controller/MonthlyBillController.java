@@ -5,6 +5,7 @@ import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.service.MonthlyBillService;
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.annotations.ApiOperation;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,12 +35,14 @@ public class MonthlyBillController {
 
     @ApiOperation("分页查询")
     @PostMapping("/search")
+    @SaCheckPermission("settlement:bill")
     public RestResult<IPage<MonthlyBill>> search(@RequestBody @Valid MonthlyBillSearchInput input) {
         return RestResult.ok(monthlyBillService.search(input));
     }
 
     @ApiOperation("编辑")
     @PostMapping("/update")
+    @SaCheckPermission("settlement:bill")
     public RestResult<String> update(@RequestBody MonthlyBill input) {
         monthlyBillService.updateBill(input);
         return RestResult.ok("操作成功");
@@ -47,12 +50,14 @@ public class MonthlyBillController {
 
     @ApiOperation("详情")
     @GetMapping("/detail")
+    @SaCheckPermission("settlement:bill")
     public RestResult<MonthlyBill> getDetail(@RequestParam("id") Long id) {
         return RestResult.ok(monthlyBillService.getById(id));
     }
 
     @ApiOperation("生成汇总账单")
     @PostMapping("/generate")
+    @SaCheckPermission("settlement:bill")
     public RestResult<String> generate(@RequestParam("billMonth") String billMonth) {
         monthlyBillService.generateSummaryBill(billMonth);
         return RestResult.ok("操作成功");
@@ -60,6 +65,7 @@ public class MonthlyBillController {
 
     @ApiOperation("汇总导出（简化版）")
     @GetMapping("/export")
+    @SaCheckPermission("settlement:bill")
     public void export(@RequestParam("billMonth") String billMonth, HttpServletResponse response) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -95,6 +101,7 @@ public class MonthlyBillController {
 
     @ApiOperation("导出所有明细")
     @GetMapping("/exportDetail")
+    @SaCheckPermission("settlement:bill")
     public void exportDetail(
             @RequestParam("billMonth") String billMonth,
             HttpServletResponse response) {

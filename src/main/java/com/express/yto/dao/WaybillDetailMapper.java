@@ -21,36 +21,38 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
 
     void insertBatch(@Param("list") List<WaybillDetail> cacheList);
 
-    void updateExtraFee(LocalDate date);
+    void updateExtraFee(@Param("billMonth") String billMonth);
 
-    List<ShopCustomerNameDTO> getShopCustomer();
+    List<ShopCustomerNameDTO> getShopCustomer(@Param("billMonth") String billMonth);
 
-    void updateCustomerByShopName(@Param("shopName") String shopName, @Param("materialType") String materialType, @Param("customerName") String customerName, @Param("customerCode") String customerCode);
+    void updateCustomerByShopName(@Param("shopName") String shopName, @Param("materialType") String materialType, @Param("customerName") String customerName, @Param("customerCode") String customerCode, @Param("billMonth") String billMonth);
 
     List<CustomerCodeAndNameDTO> getCustomerNameAndCode();
 
     void updateCode(@Param("name") String customerName, @Param("code") String customerCode);
 
     void updateEmpInfo(@Param("custName") String customerName, @Param("empName") String empName,
-            @Param("empType") String empType);
+            @Param("empType") String empType, @Param("billMonth") String billMonth);
 
-    void updateDiscrete();
+    void updateDiscrete(@Param("billMonth") String billMonth);
 
-    List<CustomerCodeAndNameDTO> getDirectCustomer();
+    List<CustomerCodeAndNameDTO> getDirectCustomer(@Param("billMonth") String billMonth);
 
     void updateFeeBatch(@Param("list") List<BillIdAndFeeDTO> idAndFeeList);
 
-    List<ContractShopExcelDTO> getEmpAliLoose();
+    List<ContractShopExcelDTO> getEmpAliLoose(@Param("billMonth") String billMonth);
 
-    List<ContractShopExcelDTO> getEmpLimit();
+    List<ContractShopExcelDTO> getEmpLimit(@Param("billMonth") String billMonth);
 
-    List<ContractShopExcelDTO> getSpecialEmpBill();
+    List<ContractShopExcelDTO> getSpecialEmpBill(@Param("billMonth") String billMonth);
 
-    List<ContractShopExcelDTO> getCompanyLoose();
+    List<ContractShopExcelDTO> getCompanyLoose(@Param("billMonth") String billMonth);
 
     void updateWeight(@Param("list") List<IdAndWeightDTO> cacheList);
 
-    void updateEmpType(LocalDate date);
+    int countByBillMonth(@Param("billMonth") String billMonth);
+
+    void updateEmpType(@Param("billMonth") String billMonth);
 
     void updateExpressFee(LocalDate date);
 }

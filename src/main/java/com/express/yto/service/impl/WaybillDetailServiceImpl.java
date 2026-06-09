@@ -105,16 +105,21 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Override
     @Transactional
-    public void cleanData(LocalDate date) {
+    public void cleanData(String billMonth) {
+        int count = waybillDetailMapper.countByBillMonth(billMonth);
+        if (count == 0) {
+            log.info("{} 月没有数据，无需清洗", billMonth);
+            return;
+        }
         // 1.更新扶持派费，上海，昆山市，太仓市 extra_fee 更新为0.1
         // TODO 扶持派费会有变动这里写死是因为暂时只为圆通写的到时候要做成可配置的并且有效时间也要加上
-        waybillDetailMapper.updateExtraFee(date);
-        waybillDetailMapper.updateEmpType(date);
+        waybillDetailMapper.updateExtraFee(billMonth);
+        waybillDetailMapper.updateEmpType(billMonth);
 //        waybillDetailMapper.updateExpressFee(date);
         // 2.混绑店铺需要更新 物料发放客户名称（send_customer_name）和客户编码（send_customer）
         // 2.1 查询账单表的 店铺-客户 数据
         // TODO 改一下逻辑，先获取店铺名称和平台名称，再获取店铺表里的相应数据，然后更新客户名称和客户编码
-        List<ShopCustomerNameDTO> billShopCustomerList = waybillDetailMapper.getShopCustomer();
+        List<ShopCustomerNameDTO> billShopCustomerList = waybillDetailMapper.getShopCustomer(billMonth);
 
         List<ShopCustomerNameDTO> shopList = shopEmpMapper.getShopCustomer();
 
@@ -126,42 +131,47 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
                     .orElse(null);
             if (shop != null) {
                 String materialTypeWithSuffix = dto.getMaterialType();
-                waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), materialTypeWithSuffix, shop.getCustomerName(), shop.getCustomerCode());
+                waybillDetailMapper.updateCustomerByShopName(dto.getShopName(), materialTypeWithSuffix, shop.getCustomerName(), shop.getCustomerCode(), billMonth);
             }
         }
         // 4.处理承包区账单 淘宝，特批，散件
         List<EmpBillInfoDTO> empInfo = shopEmpMapper.getEmpInfo();
         for (EmpBillInfoDTO dto : empInfo) {
-            waybillDetailMapper.updateEmpInfo(dto.getCustomerName(), dto.getEmpName(), dto.getEmpType());
+            waybillDetailMapper.updateEmpInfo(dto.getCustomerName(), dto.getEmpName(), dto.getEmpType(), billMonth);
         }
         // 5.清洗业务员和承包区的散件数据
-        waybillDetailMapper.updateDiscrete();
+        waybillDetailMapper.updateDiscrete(billMonth);
     }
 
     @Override
-    public void calculateBill(LocalDate date) {
+    public void calculateBill(String billMonth) {
+        int count = waybillDetailMapper.countByBillMonth(billMonth);
+        if (count == 0) {
+            log.info("{} 月没有数据，无需计算", billMonth);
+            return;
+        }
         // 特殊算法，梁瑞阳，陈丽芝，周清成，ceo茹彬彬，赵洋洋维护客户需要特别对待
         // 查询所有客户分类，计算时分3块 1.直营客户，2.承包区，3.业务员
         // 获取直营客户的代码和名称
-        List<CustomerCodeAndNameDTO> codeAndName = waybillDetailMapper.getDirectCustomer();
+        List<CustomerCodeAndNameDTO> codeAndName = waybillDetailMapper.getDirectCustomer(billMonth);
         // 1.直营客户计算账单
         executeDirectCustomerTask(codeAndName);
 
         // 2.承包区计算账单
         List<ContractShopExcelDTO> updateList = new ArrayList<>();
         // 承包区分为4块 散单，淘宝，限定，特批
-        List<ContractShopExcelDTO> aliLoose = waybillDetailMapper.getEmpAliLoose();
+        List<ContractShopExcelDTO> aliLoose = waybillDetailMapper.getEmpAliLoose(billMonth);
         List<ContractShopExcelDTO> afterAliLoose = employeeService.aliAndLoose(aliLoose, "yto_576017", false);
-        List<ContractShopExcelDTO> limit = waybillDetailMapper.getEmpLimit();
+        List<ContractShopExcelDTO> limit = waybillDetailMapper.getEmpLimit(billMonth);
         List<ContractShopExcelDTO> afterLimit = employeeService.aliAndLoose(limit, "yto_576017_limit", true);
         updateList.addAll(afterAliLoose);
         updateList.addAll(afterLimit);
         // 特批
-        List<ContractShopExcelDTO> special = waybillDetailMapper.getSpecialEmpBill();
+        List<ContractShopExcelDTO> special = waybillDetailMapper.getSpecialEmpBill(billMonth);
         List<ContractShopExcelDTO> afterSpecial = employeeService.dealSpecial(special);
         updateList.addAll(afterSpecial);
         // 3.业务员账单计算
-        List<ContractShopExcelDTO> companyEmpList = waybillDetailMapper.getCompanyLoose();
+        List<ContractShopExcelDTO> companyEmpList = waybillDetailMapper.getCompanyLoose(billMonth);
         List<ContractShopExcelDTO> dealList = factory.getCustomerHandler("业务员").handle(companyEmpList, "yto_576017");
         updateList.addAll(dealList);
         if (CollectionUtils.isNotEmpty(updateList)) {

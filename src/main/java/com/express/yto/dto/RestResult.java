@@ -24,7 +24,7 @@ public class RestResult<T> {
     }
 
     // Static method for error response
-    public static <T> RestResult<T> fail(String message) {
-        return new RestResult<>(500, null, message);
+    public static <T> RestResult<T> fail(int code, String message) {
+        return new RestResult<>(code, null, message);
     }
 }

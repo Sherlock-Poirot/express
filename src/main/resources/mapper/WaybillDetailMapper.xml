@@ -48,9 +48,8 @@
     UPDATE t_waybill_detail
     SET extra_fee = 0.1
     WHERE
-    province = '上海'
-    OR destination LIKE CONCAT('%', '太仓', '%')
-    OR destination LIKE CONCAT('%', '昆山', '%')
+    (province = '上海' OR destination LIKE CONCAT('%', '太仓', '%') OR destination LIKE CONCAT('%', '昆山', '%'))
+    AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </update>
   <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
     SELECT
@@ -60,6 +59,7 @@
     FROM
       t_waybill_detail
     WHERE material_type NOT IN ('圆通','COD')
+      AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
     GROUP BY
       settle_name,
       send_customer_name,
@@ -73,6 +73,7 @@
     update t_waybill_detail 
     set send_customer_name = #{customerName}, send_customer = #{customerCode} 
     where settle_name = #{shopName} AND material_type = #{materialType}
+      AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </update>
 
   <select id="getCustomerNameAndCode" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
@@ -96,10 +97,12 @@
 
   <update id="updateEmpInfo">
     UPDATE t_waybill_detail SET emp_type = #{empType},salesman_name = #{empName} WHERE  send_customer_name = #{custName}
+      AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </update>
 
   <update id="updateDiscrete">
     UPDATE t_waybill_detail SET emp_type = '散件' WHERE send_customer_name is null
+      AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </update>
 
   <select id="getDirectCustomer" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
@@ -110,6 +113,7 @@
       t_waybill_detail
     WHERE
       emp_type IS NULL
+      AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
     GROUP BY
       send_customer,
       send_customer_name
@@ -141,7 +145,8 @@
     </foreach>
   </update>
   <update id="updateEmpType">
-    update t_waybill_detail set emp_type = null, bill_month = DATE_FORMAT(scan_time, '%Y-%m')
+    update t_waybill_detail set emp_type = null, bill_month = #{billMonth}
+    WHERE DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </update>
   <update id="updateExpressFee">
         update t_waybill_detail set express_fee = null
@@ -166,9 +171,10 @@
     FROM
       t_waybill_detail t1
     WHERE
-      (t1.emp_type = '散件' AND t1.salesman_name IN (SELECT real_name FROM t_contract_staff where staff_type = 0))
+      DATE_FORMAT(t1.scan_time, '%Y-%m') = #{billMonth}
+      AND ((t1.emp_type = '散件' AND t1.salesman_name IN (SELECT real_name FROM t_contract_staff where staff_type = 0))
       OR
-      t1.emp_type = '淘宝'
+      t1.emp_type = '淘宝')
   </select>
   <select id="getEmpLimit" resultType="com.express.yto.dto.ContractShopExcelDTO">
     SELECT
@@ -189,6 +195,7 @@
       t_waybill_detail t1
     WHERE
       t1.emp_type = '限定'
+      AND DATE_FORMAT(t1.scan_time, '%Y-%m') = #{billMonth}
   </select>
   <select id="getSpecialEmpBill" resultType="com.express.yto.dto.ContractShopExcelDTO">
     SELECT
@@ -209,6 +216,7 @@
       t_waybill_detail t1
     WHERE
       t1.emp_type = '特批'
+      AND DATE_FORMAT(t1.scan_time, '%Y-%m') = #{billMonth}
 
   </select>
   <select id="getCompanyLoose" resultType="com.express.yto.dto.ContractShopExcelDTO">
@@ -230,5 +238,10 @@
       t_waybill_detail t1
     WHERE
       t1.emp_type = '散件' AND t1.salesman_name IN (SELECT real_name FROM t_contract_staff where staff_type = 1)
+      AND DATE_FORMAT(t1.scan_time, '%Y-%m') = #{billMonth}
+  </select>
+  <select id="countByBillMonth" resultType="int">
+    SELECT COUNT(*) FROM t_waybill_detail 
+    WHERE DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </select>
 </mapper>
