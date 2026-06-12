@@ -16,12 +16,15 @@ import com.express.yto.dto.DailyBillExcelDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.factory.FileHandlerFactory;
 import com.express.yto.model.DailyBill;
+import com.express.yto.model.Prepayment;
 import com.express.yto.service.DailyBillService;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
+import com.express.yto.service.PrepaymentService;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -54,6 +57,9 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
     @Autowired
     private FileHandlerFactory factory;
+
+    @Autowired
+    private PrepaymentService prepaymentService;
 
     private static final DateTimeFormatter[] DATE_FORMATTERS = {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
@@ -315,6 +321,8 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         }
 
         if (!billList.isEmpty()) {
+            addPrepaymentBack(billList);
+
             int batchSize = 20000;
             List<List<DailyBill>> partitionList = ListUtil.split(billList, batchSize);
 
@@ -329,6 +337,70 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
         log.info("费用计算完成，处理{}条", updateList.size());
         return String.format("费用计算完成，处理%d条", updateList.size());
+    }
+
+    private void addPrepaymentBack(List<DailyBill> billList) {
+        Map<String, List<DailyBill>> billByQueryCodeMap = new HashMap<>();
+
+        for (DailyBill bill : billList) {
+            if (bill.getCustomerFee() == null) {
+                continue;
+            }
+
+            String queryCode = getPrepaymentQueryCode(bill);
+            if (queryCode == null || queryCode.isEmpty()) {
+                continue;
+            }
+
+            billByQueryCodeMap.computeIfAbsent(queryCode, k -> new ArrayList<>()).add(bill);
+        }
+
+        if (billByQueryCodeMap.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, List<DailyBill>> entry : billByQueryCodeMap.entrySet()) {
+            String queryCode = entry.getKey();
+            List<DailyBill> customerBills = entry.getValue();
+
+            List<Prepayment> prepaymentList = prepaymentService.list(new QueryWrapper<Prepayment>().eq("code", queryCode));
+            if (prepaymentList.isEmpty()) {
+                continue;
+            }
+
+            for (DailyBill bill : customerBills) {
+                LocalDate chargeDate = bill.getChargeDate();
+                BigDecimal prepayment = prepaymentList.stream()
+                        .filter(p -> chargeDate != null 
+                                && !chargeDate.isBefore(p.getStartTime()) 
+                                && !chargeDate.isAfter(p.getEndTime()))
+                        .map(Prepayment::getPreFee)
+                        .findFirst()
+                        .orElse(null);
+
+                if (prepayment != null && prepayment.compareTo(BigDecimal.ZERO) > 0) {
+                bill.setCustomerFee(bill.getCustomerFee().add(prepayment));
+            }
+            }
+        }
+    }
+
+    private String getPrepaymentQueryCode(DailyBill bill) {
+        String empType = bill.getEmpType();
+        
+        if (empType == null || empType.isEmpty()) {
+            return bill.getCustomerCode();
+        }
+        
+        if ("散件".equals(empType) || "淘宝".equals(empType)) {
+            return "yto_576017";
+        }
+        
+        if ("限定".equals(empType)) {
+            return "yto_576017_limit";
+        }
+        
+        return bill.getCustomerCode();
     }
 
     private void executeDirectCustomerTask(List<CustomerCodeAndNameDTO> codeAndName, List<DailyBill> billList) {
