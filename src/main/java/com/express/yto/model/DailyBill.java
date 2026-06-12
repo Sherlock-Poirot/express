@@ -52,6 +52,9 @@ public class DailyBill {
     @TableField("import_time")
     private LocalDateTime importTime;
 
-    @TableField("bill_month")
-    private String billMonth;
+    @TableField("emp_name")
+    private String empName;
+
+    @TableField("emp_type")
+    private String empType;
 }

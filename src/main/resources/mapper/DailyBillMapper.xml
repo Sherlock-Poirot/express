@@ -15,22 +15,74 @@
         <result column="charge_date" jdbcType="DATE" property="chargeDate"/>
         <result column="rebate_amount" jdbcType="DECIMAL" property="rebateAmount"/>
         <result column="customer_fee" jdbcType="DECIMAL" property="customerFee"/>
-        <result column="import_time" jdbcType="DATETIME" property="importTime"/>
-        <result column="bill_month" jdbcType="VARCHAR" property="billMonth"/>
+        <result column="import_time" jdbcType="TIMESTAMP" property="importTime"/>
     </resultMap>
 
     <insert id="insertBatch">
         INSERT INTO t_daily_bill (
             waybill_no, customer_code, customer_name, charge_weight, total_amount,
             merchant_code, merchant_name, settle_province, charge_date,
-            rebate_amount, customer_fee, import_time, bill_month
+            rebate_amount, customer_fee, import_time
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
                 #{item.waybillNo}, #{item.customerCode}, #{item.customerName}, #{item.chargeWeight}, #{item.totalAmount},
                 #{item.merchantCode}, #{item.merchantName}, #{item.settleProvince}, #{item.chargeDate},
-                #{item.rebateAmount}, #{item.customerFee}, NOW(), #{item.billMonth}
+                #{item.rebateAmount}, #{item.customerFee}, NOW()
             )
         </foreach>
     </insert>
+
+    <select id="selectDistinctMerchantCustomer" resultMap="BaseResultMap">
+        SELECT DISTINCT merchant_code, merchant_name, customer_code, customer_name
+        FROM t_daily_bill
+        WHERE merchant_code IS NOT NULL AND merchant_code != ''
+    </select>
+
+    <select id="selectDistinctMerchantCustomerByDate" resultMap="BaseResultMap">
+        SELECT DISTINCT merchant_code, merchant_name, customer_code, customer_name
+        FROM t_daily_bill
+        WHERE merchant_code IS NOT NULL AND merchant_code != ''
+          AND charge_date = #{date}
+    </select>
+
+    <update id="updateCustomerInfoByMerchant">
+        UPDATE t_daily_bill
+        SET customer_code = #{newCustomerCode}, customer_name = #{newCustomerName}
+        WHERE merchant_code = #{merchantCode} AND customer_code = #{oldCustomerCode}
+    </update>
+
+    <update id="batchUpdateCustomerInfo">
+        UPDATE t_daily_bill
+        <set>
+            customer_code = CASE
+                <foreach collection="list" item="item" separator=" ">
+                    WHEN merchant_code = #{item.merchantCode} AND merchant_name = #{item.merchantName} THEN #{item.customerCode}
+                </foreach>
+                ELSE customer_code
+            END,
+            customer_name = CASE
+                <foreach collection="list" item="item" separator=" ">
+                    WHEN merchant_code = #{item.merchantCode} AND merchant_name = #{item.merchantName} THEN #{item.customerName}
+                </foreach>
+                ELSE customer_name
+            END,
+            emp_name = CASE
+                <foreach collection="list" item="item" separator=" ">
+                    WHEN merchant_code = #{item.merchantCode} AND merchant_name = #{item.merchantName} AND #{item.empName} IS NOT NULL AND #{item.empName} != '' THEN #{item.empName}
+                </foreach>
+                ELSE emp_name
+            END,
+            emp_type = CASE
+                <foreach collection="list" item="item" separator=" ">
+                    WHEN merchant_code = #{item.merchantCode} AND merchant_name = #{item.merchantName} AND #{item.empType} IS NOT NULL AND #{item.empType} != '' THEN #{item.empType}
+                </foreach>
+                ELSE emp_type
+            END
+        </set>
+        WHERE (merchant_code, merchant_name) IN
+        <foreach collection="list" item="item" separator="," open="(" close=")">
+            (#{item.merchantCode}, #{item.merchantName})
+        </foreach>
+    </update>
 </mapper>

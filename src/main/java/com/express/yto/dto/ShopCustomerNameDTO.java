@@ -9,6 +9,8 @@ import lombok.Data;
 @Data
 public class ShopCustomerNameDTO {
 
+    private String shopId;
+
     private String shopName;
 
     private String customerName;
@@ -16,4 +18,8 @@ public class ShopCustomerNameDTO {
     private String materialType;
 
     private String customerCode;
+
+    private String empName;
+
+    private String empType;
 }

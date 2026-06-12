@@ -12,10 +12,10 @@ CREATE TABLE `t_daily_bill` (
     `rebate_amount` DECIMAL(12,2) COMMENT '返利金额',
     `customer_fee` DECIMAL(12,2) COMMENT '客户运费',
     `import_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '导入时间',
-    `bill_month` VARCHAR(7) COMMENT '账单月份',
+    `emp_name` VARCHAR(255) COMMENT '员工名称',
+    `emp_type` VARCHAR(64) COMMENT '员工类型',
     PRIMARY KEY (`id`) USING BTREE,
     KEY `idx_waybill_no` (`waybill_no`) USING BTREE,
     KEY `idx_customer_code` (`customer_code`) USING BTREE,
-    KEY `idx_charge_date` (`charge_date`) USING BTREE,
-    KEY `idx_bill_month` (`bill_month`) USING BTREE
+    KEY `idx_charge_date` (`charge_date`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_bin ROW_FORMAT=DYNAMIC COMMENT='每日账单表-量本利计算';

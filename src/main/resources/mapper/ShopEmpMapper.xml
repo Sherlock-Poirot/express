@@ -19,17 +19,23 @@
   </sql>
   <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
     SELECT
+      shop_id AS shopId,
       shop_name AS shopName,
       cust_name AS customerName,
       code AS customerCode,
-      platform AS materialType
+      platform AS materialType,
+      emp_name AS empName,
+      emp_type AS empType
     FROM
       t_shop_emp
     GROUP BY
+      shop_id,
       shop_name,
       cust_name,
       code,
-      platform
+      platform,
+      emp_name,
+      emp_type
       ORDER BY
       cust_name,shop_name,platform
   </select>
