@@ -59,4 +59,11 @@ public class PolicyServiceImpl extends ServiceImpl<PolicyMapper, Policy> impleme
                 .map(policy -> policy.getAmount() != null ? policy.getAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
+    @Override
+    public List<Policy> getBaseRebatePolicies() {
+        QueryWrapper<Policy> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("policy_type", 1); // 1-基数返利
+        return list(queryWrapper);
+    }
 }

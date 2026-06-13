@@ -31,6 +31,9 @@ public class CustomerStatisticsSummaryDTO {
     /** 总返利 */
     private BigDecimal totalRebateAmount;
     
+    /** 基数返利（估算） */
+    private BigDecimal estimatedRebateAmount;
+    
     /** 总盈利 */
     private BigDecimal totalProfit;
     

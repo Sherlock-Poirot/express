@@ -18,6 +18,7 @@ import com.express.yto.dto.DailyBillExcelDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.factory.FileHandlerFactory;
 import com.express.yto.model.DailyBill;
+import com.express.yto.model.Policy;
 import com.express.yto.model.Prepayment;
 import com.express.yto.model.Area;
 import com.express.yto.service.AreaService;
@@ -28,6 +29,7 @@ import com.express.yto.service.PolicyService;
 import com.express.yto.service.PrepaymentService;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -79,6 +81,9 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
             DateTimeFormatter.ofPattern("yyyy/M/d")
     };
     private static final int BATCH_SIZE = 1000;
+
+    // 排除统计的客户名称列表
+    private static final List<String> EXCLUDED_CUSTOMER_NAMES = Arrays.asList("圣强", "程志远");
 
     @Override
     @Transactional
@@ -629,9 +634,11 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             dto.setCustomerFee(customerFee);
 
+            // 返利（估算）- 暂时返回0，实际返利计算在汇总中统一处理
             BigDecimal rebateAmount = BigDecimal.ZERO;
             dto.setRebateAmount(rebateAmount);
 
+            // 盈利 = 客户中转费 + 返利 - 成本
             BigDecimal profit = customerFee.add(rebateAmount).subtract(totalAmount);
             dto.setProfit(profit);
 
@@ -679,6 +686,7 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
             emptySummary.setTotalAmount(BigDecimal.ZERO);
             emptySummary.setTotalCustomerFee(BigDecimal.ZERO);
             emptySummary.setTotalRebateAmount(BigDecimal.ZERO);
+            emptySummary.setEstimatedRebateAmount(BigDecimal.ZERO);
             emptySummary.setTotalProfit(BigDecimal.ZERO);
             emptySummary.setFixedPolicyFee(BigDecimal.ZERO);
             return emptySummary;
@@ -710,15 +718,23 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         summary.setTotalCustomerFee(totalCustomerFee);
 
-        BigDecimal totalRebateAmount = BigDecimal.ZERO;
-        summary.setTotalRebateAmount(totalRebateAmount);
+        // 计算基数返利（估算）- 排除指定客户（圣强、程志远）
+        List<DailyBill> rebateBillList = billList.stream()
+                .filter(bill -> !EXCLUDED_CUSTOMER_NAMES.contains(bill.getCustomerName()))
+                .collect(Collectors.toList());
+        BigDecimal totalRebateAmount = calculateBaseRebate(rebateBillList);
+        summary.setTotalRebateAmount(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO);
+        summary.setEstimatedRebateAmount(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO);
+        log.info("基数返利（估算）汇总: {}", totalRebateAmount);
 
         // 查询固定政策收费（政策类型为2-固定收费的金额总和）
         BigDecimal fixedPolicyFee = policyService.getFixedPolicyTotalAmount();
         summary.setFixedPolicyFee(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
 
         // 总盈利 = 客户中转费 + 返利 - 成本 + 固定政策收费
-        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount).subtract(totalAmount).add(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
+        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO)
+                .subtract(totalAmount)
+                .add(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
         summary.setTotalProfit(totalProfit);
 
         if (date != null) {
@@ -741,5 +757,59 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
         log.info("客户统计汇总查询完成");
         return summary;
+    }
+
+    /**
+     * 计算基数返利金额（估算）
+     * @param billList 账单列表
+     * @return 返利金额总和
+     */
+    private BigDecimal calculateBaseRebate(List<DailyBill> billList) {
+        if (billList == null || billList.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // 获取所有基数返利政策
+        List<Policy> rebatePolicies = policyService.getBaseRebatePolicies();
+        if (rebatePolicies == null || rebatePolicies.isEmpty()) {
+            log.info("未找到基数返利政策");
+            return BigDecimal.ZERO;
+        }
+
+        log.info("找到{}条基数返利政策", rebatePolicies.size());
+
+        BigDecimal totalRebate = BigDecimal.ZERO;
+
+        // 遍历每条政策，计算符合条件的返利
+        for (Policy policy : rebatePolicies) {
+            BigDecimal weightLeft = policy.getWeightLeft();
+            BigDecimal weightRight = policy.getWeightRight();
+            BigDecimal baseAmount = policy.getBaseAmount() != null ? policy.getBaseAmount() : BigDecimal.ZERO;
+            BigDecimal amount = policy.getAmount() != null ? policy.getAmount() : BigDecimal.ZERO;
+
+            // 统计符合条件的运单数量
+            long count = billList.stream()
+                    .filter(bill -> {
+                        BigDecimal chargeWeight = bill.getChargeWeight();
+                        if (chargeWeight == null) {
+                            return false;
+                        }
+                        // 重量 >= weightLeft 且 < weightRight
+                        boolean leftCondition = weightLeft == null || chargeWeight.compareTo(weightLeft) >= 0;
+                        boolean rightCondition = weightRight == null || chargeWeight.compareTo(weightRight) < 0;
+                        return leftCondition && rightCondition;
+                    })
+                    .count();
+
+            if (count > 0) {
+                // 返利 = 数量 * amount - baseAmount
+                BigDecimal rebate = BigDecimal.valueOf(count).multiply(amount).subtract(baseAmount);
+                totalRebate = totalRebate.add(rebate);
+                log.info("政策[ID={}]返利计算: 数量={}, amount={}, baseAmount={}, 返利={}",
+                        policy.getId(), count, amount, baseAmount, rebate);
+            }
+        }
+
+        return totalRebate;
     }
 }

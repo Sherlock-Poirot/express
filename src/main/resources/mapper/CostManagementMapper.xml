@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.CostManagementMapper">
+
+    <select id="sumByCostType" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM t_cost_management
+        WHERE cost_type = #{costType}
+    </select>
+
+    <select id="sumGroupByCostType" resultType="map">
+        SELECT 
+            cost_type as costType,
+            SUM(amount) as totalAmount,
+            CASE cost_type 
+                WHEN 1 THEN '场地成本'
+                WHEN 2 THEN '人工成本'
+                WHEN 3 THEN '操作成本'
+                WHEN 4 THEN '运能成本'
+                WHEN 5 THEN '折旧成本'
+                ELSE '其他'
+            END as costTypeName
+        FROM t_cost_management
+        GROUP BY cost_type
+        ORDER BY cost_type
+    </select>
+
+</mapper>

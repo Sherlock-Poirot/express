@@ -22,4 +22,10 @@ public interface PolicyService extends IService<Policy> {
      * @return 政策类型为2-固定收费的金额总和
      */
     BigDecimal getFixedPolicyTotalAmount();
+
+    /**
+     * 获取基数返利政策列表
+     * @return 政策类型为1-基数返利的政策列表
+     */
+    List<Policy> getBaseRebatePolicies();
 }

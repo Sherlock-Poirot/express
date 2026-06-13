@@ -67,7 +67,7 @@ public class CustomerStatisticsDTO {
     /** 客户中转费（customer_fee字段求和） */
     private BigDecimal customerFee;
     
-    /** 返利（暂未实现，默认0） */
+    /** 返利（暂未实现，默认为0，实际返利计算在汇总中统一处理） */
     private BigDecimal rebateAmount;
     
     /** 盈利（客户中转费 + 返利 - 成本） */
