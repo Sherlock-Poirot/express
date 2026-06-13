@@ -12,11 +12,15 @@ import com.express.yto.dao.DailyBillMapper;
 import com.express.yto.dao.ShopEmpMapper;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
+import com.express.yto.dto.CustomerStatisticsDTO;
+import com.express.yto.dto.CustomerStatisticsSummaryDTO;
 import com.express.yto.dto.DailyBillExcelDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.factory.FileHandlerFactory;
 import com.express.yto.model.DailyBill;
 import com.express.yto.model.Prepayment;
+import com.express.yto.model.Area;
+import com.express.yto.service.AreaService;
 import com.express.yto.service.DailyBillService;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
@@ -60,6 +64,9 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
     @Autowired
     private PrepaymentService prepaymentService;
+
+    @Autowired
+    private AreaService areaService;
 
     private static final DateTimeFormatter[] DATE_FORMATTERS = {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
@@ -489,5 +496,240 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CustomerStatisticsDTO> getCustomerStatistics(LocalDate date) {
+        log.info("开始查询客户统计数据, 日期: {}", date);
+
+        QueryWrapper<DailyBill> queryWrapper = new QueryWrapper<>();
+        if (date != null) {
+            queryWrapper.eq("charge_date", date);
+        }
+
+        List<DailyBill> billList = list(queryWrapper);
+        if (billList.isEmpty()) {
+            log.info("未找到账单数据");
+            return new ArrayList<>();
+        }
+
+        List<Area> areaList = areaService.list(new QueryWrapper<Area>().eq("company_id", "yto_576017"));
+
+        Map<String, List<DailyBill>> billByCustomerMap = billList.stream()
+                .filter(bill -> bill.getCustomerCode() != null && !bill.getCustomerCode().isEmpty())
+                .collect(Collectors.groupingBy(bill -> bill.getCustomerCode() + "_" + bill.getCustomerName()));
+
+        int totalCount = billList.size();
+
+        List<CustomerStatisticsDTO> resultList = new ArrayList<>();
+
+        for (Map.Entry<String, List<DailyBill>> entry : billByCustomerMap.entrySet()) {
+            String key = entry.getKey();
+            String customerCode = key.split("_")[0];
+            String customerName = key.substring(key.indexOf("_") + 1);
+            List<DailyBill> customerBills = entry.getValue();
+
+            CustomerStatisticsDTO dto = new CustomerStatisticsDTO();
+            dto.setCustomerCode(customerCode);
+            dto.setCustomerName(customerName);
+
+            int customerCount = customerBills.size();
+            dto.setTotalCount(customerCount);
+
+            BigDecimal totalWeight = customerBills.stream()
+                    .map(bill -> bill.getChargeWeight() != null ? bill.getChargeWeight() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal avgWeight = customerCount > 0 ? totalWeight.divide(BigDecimal.valueOf(customerCount), 2, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO;
+            dto.setAvgWeight(avgWeight);
+
+            BigDecimal proportion = totalCount > 0 ? BigDecimal.valueOf(customerCount).divide(BigDecimal.valueOf(totalCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO;
+            dto.setProportion(proportion);
+
+            int weight05Count = 0, weight10Count = 0, weight15Count = 0, weight20Count = 0, weight30Count = 0, weightOver30Count = 0;
+            for (DailyBill bill : customerBills) {
+                BigDecimal weight = bill.getChargeWeight();
+                if (weight == null) {
+                    continue;
+                }
+                int compare05 = weight.compareTo(BigDecimal.valueOf(0.5));
+                int compare10 = weight.compareTo(BigDecimal.valueOf(1.0));
+                int compare15 = weight.compareTo(BigDecimal.valueOf(1.5));
+                int compare20 = weight.compareTo(BigDecimal.valueOf(2.0));
+                int compare30 = weight.compareTo(BigDecimal.valueOf(3.0));
+
+                if (compare05 <= 0) {
+                    weight05Count++;
+                } else if (compare10 <= 0) {
+                    weight10Count++;
+                } else if (compare15 <= 0) {
+                    weight15Count++;
+                } else if (compare20 <= 0) {
+                    weight20Count++;
+                } else if (compare30 <= 0) {
+                    weight30Count++;
+                } else {
+                    weightOver30Count++;
+                }
+            }
+
+            dto.setWeight05Percent(customerCount > 0 ? BigDecimal.valueOf(weight05Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setWeight10Percent(customerCount > 0 ? BigDecimal.valueOf(weight10Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setWeight15Percent(customerCount > 0 ? BigDecimal.valueOf(weight15Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setWeight20Percent(customerCount > 0 ? BigDecimal.valueOf(weight20Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setWeight30Percent(customerCount > 0 ? BigDecimal.valueOf(weight30Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setWeightOver30Percent(customerCount > 0 ? BigDecimal.valueOf(weightOver30Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+
+            int area1Count = 0, area2Count = 0, area3Count = 0, area4Count = 0, area5Count = 0;
+            for (DailyBill bill : customerBills) {
+                String destProvince = bill.getSettleProvince();
+                if (destProvince == null || destProvince.isEmpty()) {
+                    continue;
+                }
+
+                Area matchedArea = null;
+                for (Area area : areaList) {
+                    String areaCity = area.getAreaCity();
+                    if (areaCity != null && areaCity.contains(destProvince)) {
+                        matchedArea = area;
+                        break;
+                    }
+                }
+
+                if (matchedArea != null) {
+                    Integer areaNum = matchedArea.getAreaNum();
+                    if (areaNum != null) {
+                        switch (areaNum) {
+                            case 1: area1Count++; break;
+                            case 2: area2Count++; break;
+                            case 3: area3Count++; break;
+                            case 4: area4Count++; break;
+                            case 5: area5Count++; break;
+                        }
+                    }
+                }
+            }
+
+            dto.setArea1Percent(customerCount > 0 ? BigDecimal.valueOf(area1Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setArea2Percent(customerCount > 0 ? BigDecimal.valueOf(area2Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setArea3Percent(customerCount > 0 ? BigDecimal.valueOf(area3Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setArea4Percent(customerCount > 0 ? BigDecimal.valueOf(area4Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+            dto.setArea5Percent(customerCount > 0 ? BigDecimal.valueOf(area5Count).divide(BigDecimal.valueOf(customerCount), 4, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO);
+
+            BigDecimal totalAmount = customerBills.stream()
+                    .map(bill -> bill.getTotalAmount() != null ? bill.getTotalAmount() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            dto.setTotalAmount(totalAmount);
+
+            BigDecimal customerFee = customerBills.stream()
+                    .map(bill -> bill.getCustomerFee() != null ? bill.getCustomerFee() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            dto.setCustomerFee(customerFee);
+
+            BigDecimal rebateAmount = BigDecimal.ZERO;
+            dto.setRebateAmount(rebateAmount);
+
+            BigDecimal profit = customerFee.add(rebateAmount).subtract(totalAmount);
+            dto.setProfit(profit);
+
+            if (date != null) {
+                LocalDate yesterday = date.minusDays(1);
+                QueryWrapper<DailyBill> yesterdayQuery = new QueryWrapper<>();
+                yesterdayQuery.eq("charge_date", yesterday);
+                yesterdayQuery.eq("customer_code", customerCode);
+                int yesterdayCount = (int) count(yesterdayQuery);
+
+                BigDecimal dayOnDayRatio = null;
+                if (yesterdayCount > 0 && customerCount > 0) {
+                    dayOnDayRatio = BigDecimal.valueOf(customerCount).divide(BigDecimal.valueOf(yesterdayCount), 4, BigDecimal.ROUND_HALF_UP)
+                            .subtract(BigDecimal.ONE);
+                }
+                dto.setDayOnDayRatio(dayOnDayRatio);
+            }
+
+            resultList.add(dto);
+        }
+
+        resultList.sort((a, b) -> b.getTotalCount() - a.getTotalCount());
+
+        log.info("客户统计查询完成，共{}个客户", resultList.size());
+        return resultList;
+    }
+
+    @Override
+    public CustomerStatisticsSummaryDTO getCustomerStatisticsSummary(LocalDate date) {
+        log.info("开始查询客户统计汇总数据, 日期: {}", date);
+
+        QueryWrapper<DailyBill> queryWrapper = new QueryWrapper<>();
+        if (date != null) {
+            queryWrapper.eq("charge_date", date);
+        }
+
+        List<DailyBill> billList = list(queryWrapper);
+        if (billList.isEmpty()) {
+            log.info("未找到账单数据");
+            CustomerStatisticsSummaryDTO emptySummary = new CustomerStatisticsSummaryDTO();
+            emptySummary.setCustomerCount(0);
+            emptySummary.setTotalCount(0);
+            emptySummary.setAvgWeight(BigDecimal.ZERO);
+            emptySummary.setAvgDayOnDayRatio(null);
+            emptySummary.setTotalAmount(BigDecimal.ZERO);
+            emptySummary.setTotalCustomerFee(BigDecimal.ZERO);
+            emptySummary.setTotalRebateAmount(BigDecimal.ZERO);
+            emptySummary.setTotalProfit(BigDecimal.ZERO);
+            return emptySummary;
+        }
+
+        CustomerStatisticsSummaryDTO summary = new CustomerStatisticsSummaryDTO();
+
+        int totalCount = billList.size();
+        summary.setTotalCount(totalCount);
+
+        Map<String, List<DailyBill>> billByCustomerMap = billList.stream()
+                .filter(bill -> bill.getCustomerCode() != null && !bill.getCustomerCode().isEmpty())
+                .collect(Collectors.groupingBy(bill -> bill.getCustomerCode() + "_" + bill.getCustomerName()));
+        summary.setCustomerCount(billByCustomerMap.size());
+
+        BigDecimal totalWeight = billList.stream()
+                .map(bill -> bill.getChargeWeight() != null ? bill.getChargeWeight() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal avgWeight = totalCount > 0 ? totalWeight.divide(BigDecimal.valueOf(totalCount), 2, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO;
+        summary.setAvgWeight(avgWeight);
+
+        BigDecimal totalAmount = billList.stream()
+                .map(bill -> bill.getTotalAmount() != null ? bill.getTotalAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        summary.setTotalAmount(totalAmount);
+
+        BigDecimal totalCustomerFee = billList.stream()
+                .map(bill -> bill.getCustomerFee() != null ? bill.getCustomerFee() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        summary.setTotalCustomerFee(totalCustomerFee);
+
+        BigDecimal totalRebateAmount = BigDecimal.ZERO;
+        summary.setTotalRebateAmount(totalRebateAmount);
+
+        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount).subtract(totalAmount);
+        summary.setTotalProfit(totalProfit);
+
+        if (date != null) {
+            LocalDate yesterday = date.minusDays(1);
+
+            QueryWrapper<DailyBill> yesterdayQuery = new QueryWrapper<>();
+            yesterdayQuery.eq("charge_date", yesterday);
+            int yesterdayTotalCount = (int) count(yesterdayQuery);
+
+            BigDecimal avgDayOnDayRatio = null;
+            if (yesterdayTotalCount > 0) {
+                avgDayOnDayRatio = BigDecimal.valueOf(totalCount)
+                        .divide(BigDecimal.valueOf(yesterdayTotalCount), 4, BigDecimal.ROUND_HALF_UP)
+                        .subtract(BigDecimal.ONE);
+            }
+            summary.setAvgDayOnDayRatio(avgDayOnDayRatio);
+        } else {
+            summary.setAvgDayOnDayRatio(null);
+        }
+
+        log.info("客户统计汇总查询完成");
+        return summary;
     }
 }
