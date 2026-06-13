@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -42,5 +43,20 @@ public class PolicyServiceImpl extends ServiceImpl<PolicyMapper, Policy> impleme
     @Override
     public boolean deletePolicy(Long id) {
         return removeById(id);
+    }
+
+    @Override
+    public BigDecimal getFixedPolicyTotalAmount() {
+        QueryWrapper<Policy> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("policy_type", 2); // 2-固定收费
+        List<Policy> fixedPolicies = list(queryWrapper);
+
+        if (fixedPolicies == null || fixedPolicies.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return fixedPolicies.stream()
+                .map(policy -> policy.getAmount() != null ? policy.getAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

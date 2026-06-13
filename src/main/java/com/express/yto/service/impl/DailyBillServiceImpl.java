@@ -24,6 +24,7 @@ import com.express.yto.service.AreaService;
 import com.express.yto.service.DailyBillService;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
+import com.express.yto.service.PolicyService;
 import com.express.yto.service.PrepaymentService;
 
 import java.util.ArrayList;
@@ -67,6 +68,9 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
     @Autowired
     private AreaService areaService;
+
+    @Autowired
+    private PolicyService policyService;
 
     private static final DateTimeFormatter[] DATE_FORMATTERS = {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
@@ -676,6 +680,7 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
             emptySummary.setTotalCustomerFee(BigDecimal.ZERO);
             emptySummary.setTotalRebateAmount(BigDecimal.ZERO);
             emptySummary.setTotalProfit(BigDecimal.ZERO);
+            emptySummary.setFixedPolicyFee(BigDecimal.ZERO);
             return emptySummary;
         }
 
@@ -708,7 +713,12 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         BigDecimal totalRebateAmount = BigDecimal.ZERO;
         summary.setTotalRebateAmount(totalRebateAmount);
 
-        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount).subtract(totalAmount);
+        // 查询固定政策收费（政策类型为2-固定收费的金额总和）
+        BigDecimal fixedPolicyFee = policyService.getFixedPolicyTotalAmount();
+        summary.setFixedPolicyFee(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
+
+        // 总盈利 = 客户中转费 + 返利 - 成本 + 固定政策收费
+        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount).subtract(totalAmount).add(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
         summary.setTotalProfit(totalProfit);
 
         if (date != null) {

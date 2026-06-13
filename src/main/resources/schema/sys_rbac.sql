@@ -94,7 +94,8 @@ INSERT IGNORE INTO t_sys_menu (parent_id, menu_name, menu_code, menu_type, path,
 
 -- 报表中心
 (0, '报表中心', NULL, 1, '/report', 'el-icon-s-data', 3),
-(10, '量本利报表', 'report:profit', 2, '/report/profit', 'el-icon-trending-up', 1);
+(10, '量本利报表', 'report:profit', 2, '/report/profit', 'el-icon-trending-up', 1),
+(10, '政策管理', 'report:policy', 2, '/report/policy', 'el-icon-file-text', 2);
 
 -- 给超级管理员赋权（所有菜单）
 INSERT IGNORE INTO t_sys_role_menu (role_id, menu_id)

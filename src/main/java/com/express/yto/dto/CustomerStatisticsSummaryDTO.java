@@ -33,4 +33,7 @@ public class CustomerStatisticsSummaryDTO {
     
     /** 总盈利 */
     private BigDecimal totalProfit;
+    
+    /** 固定政策收费（政策类型为2-固定收费的金额总和） */
+    private BigDecimal fixedPolicyFee;
 }
