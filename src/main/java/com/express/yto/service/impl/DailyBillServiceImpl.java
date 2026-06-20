@@ -722,17 +722,26 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         List<DailyBill> rebateBillList = billList.stream()
                 .filter(bill -> !EXCLUDED_CUSTOMER_NAMES.contains(bill.getCustomerName()))
                 .collect(Collectors.toList());
-        BigDecimal totalRebateAmount = calculateBaseRebate(rebateBillList);
-        summary.setTotalRebateAmount(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO);
-        summary.setEstimatedRebateAmount(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO);
-        log.info("基数返利（估算）汇总: {}", totalRebateAmount);
+        BigDecimal baseRebateAmount = calculateBaseRebate(rebateBillList);
+        summary.setEstimatedRebateAmount(baseRebateAmount != null ? baseRebateAmount : BigDecimal.ZERO);
+        log.info("基数返利（估算）汇总: {}", baseRebateAmount);
+
+        // 计算动态返利（估算）- 使用同样排除客户的运单列表
+        BigDecimal dynamicRebateAmount = calculateDynamicRebate(rebateBillList);
+        summary.setDynamicRebateAmount(dynamicRebateAmount != null ? dynamicRebateAmount : BigDecimal.ZERO);
+        log.info("动态返利（估算）汇总: {}", dynamicRebateAmount);
+
+        // 总返利 = 基数返利 + 动态返利
+        BigDecimal totalRebateAmount = (baseRebateAmount != null ? baseRebateAmount : BigDecimal.ZERO)
+                .add(dynamicRebateAmount != null ? dynamicRebateAmount : BigDecimal.ZERO);
+        summary.setTotalRebateAmount(totalRebateAmount);
 
         // 查询固定政策收费（政策类型为2-固定收费的金额总和）
         BigDecimal fixedPolicyFee = policyService.getFixedPolicyTotalAmount();
         summary.setFixedPolicyFee(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
 
         // 总盈利 = 客户中转费 + 返利 - 成本 + 固定政策收费
-        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount != null ? totalRebateAmount : BigDecimal.ZERO)
+        BigDecimal totalProfit = totalCustomerFee.add(totalRebateAmount)
                 .subtract(totalAmount)
                 .add(fixedPolicyFee != null ? fixedPolicyFee : BigDecimal.ZERO);
         summary.setTotalProfit(totalProfit);
@@ -802,14 +811,88 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
                     .count();
 
             if (count > 0) {
-                // 返利 = 数量 * amount - baseAmount
-                BigDecimal rebate = BigDecimal.valueOf(count).multiply(amount).subtract(baseAmount);
+                // 返利 = (数量 - 基数) * 返利金额
+                // 只有超出基数部分才计算返利
+                long baseCount = baseAmount.longValue();
+                long exceedCount = Math.max(0, count - baseCount);
+                BigDecimal rebate = BigDecimal.valueOf(exceedCount).multiply(amount);
                 totalRebate = totalRebate.add(rebate);
-                log.info("政策[ID={}]返利计算: 数量={}, amount={}, baseAmount={}, 返利={}",
-                        policy.getId(), count, amount, baseAmount, rebate);
+                log.info("政策[ID={}]返利计算: 数量={}, 基数={}, 超出数量={}, 返利单价={}, 返利={}",
+                        policy.getId(), count, baseCount, exceedCount, amount, rebate);
             }
         }
 
         return totalRebate;
+    }
+
+    /**
+     * 计算动态返利
+     * 规则：统计0-3kg的运单数量，根据数量匹配动态返利政策区间，返利 = 数量 × 返利金额
+     * @param billList 运单列表（已排除圣强、程志远）
+     * @return 动态返利金额
+     */
+    private BigDecimal calculateDynamicRebate(List<DailyBill> billList) {
+        if (billList == null || billList.isEmpty()) {
+            log.info("运单列表为空，跳过动态返利计算");
+            return BigDecimal.ZERO;
+        }
+
+        // 统计0-3kg的运单数量
+        long weight0To3Count = billList.stream()
+                .filter(bill -> {
+                    BigDecimal chargeWeight = bill.getChargeWeight();
+                    if (chargeWeight == null) {
+                        return false;
+                    }
+                    // 0 <= 重量 < 3kg
+                    return chargeWeight.compareTo(BigDecimal.ZERO) >= 0 && chargeWeight.compareTo(BigDecimal.valueOf(3)) < 0;
+                })
+                .count();
+
+        log.info("0-3kg运单数量: {}", weight0To3Count);
+
+        if (weight0To3Count <= 0) {
+            log.info("0-3kg运单数量为0，跳过动态返利计算");
+            return BigDecimal.ZERO;
+        }
+
+        // 获取所有动态返利政策
+        List<Policy> dynamicRebatePolicies = policyService.getDynamicRebatePolicies();
+        if (dynamicRebatePolicies == null || dynamicRebatePolicies.isEmpty()) {
+            log.info("未找到动态返利政策");
+            return BigDecimal.ZERO;
+        }
+
+        log.info("找到{}条动态返利政策", dynamicRebatePolicies.size());
+
+        // 找到匹配数量区间的政策
+        Policy matchedPolicy = null;
+        for (Policy policy : dynamicRebatePolicies) {
+            BigDecimal weightLeft = policy.getWeightLeft();
+            BigDecimal weightRight = policy.getWeightRight();
+
+            // 这里的weight_left和weight_right实际上代表数量区间
+            boolean leftCondition = weightLeft == null || weight0To3Count >= weightLeft.longValue();
+            boolean rightCondition = weightRight == null || weight0To3Count < weightRight.longValue();
+
+            if (leftCondition && rightCondition) {
+                matchedPolicy = policy;
+                log.info("匹配到动态返利政策[ID={}]: 数量区间[{}, {}), 返利金额={}",
+                        policy.getId(), weightLeft, weightRight, policy.getAmount());
+                break;
+            }
+        }
+
+        if (matchedPolicy == null) {
+            log.info("未找到匹配的动态返利政策");
+            return BigDecimal.ZERO;
+        }
+
+        // 计算动态返利：返利 = 数量 × 返利金额
+        BigDecimal amount = matchedPolicy.getAmount() != null ? matchedPolicy.getAmount() : BigDecimal.ZERO;
+        BigDecimal dynamicRebate = BigDecimal.valueOf(weight0To3Count).multiply(amount);
+        log.info("动态返利计算完成: 数量={}, 返利单价={}, 返利={}", weight0To3Count, amount, dynamicRebate);
+
+        return dynamicRebate;
     }
 }

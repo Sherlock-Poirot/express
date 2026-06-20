@@ -1,5 +1,6 @@
 package com.express.yto.controller;
 
+import com.express.yto.dto.CostSummaryDTO;
 import com.express.yto.dto.CostTypeSummaryDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.CostManagement;
@@ -21,26 +22,21 @@ public class CostManagementController {
     @Autowired
     private CostManagementService costManagementService;
 
-    @PostMapping
+    @PostMapping("/create")
     @ApiOperation("创建成本记录")
     public RestResult<CostManagement> createCost(@RequestBody CostManagement cost) {
         CostManagement result = costManagementService.createCost(cost);
         return RestResult.ok(result);
     }
 
-    @GetMapping("/{id}")
-    @ApiOperation("根据ID查询成本记录")
-    public RestResult<CostManagement> getCostById(@PathVariable Long id) {
-        CostManagement result = costManagementService.getCostById(id);
-        return RestResult.ok(result);
-    }
-
-    @GetMapping
+    @GetMapping("/list")
     @ApiOperation("查询成本列表")
     public RestResult<List<CostManagement>> listCosts(
-            @ApiParam("成本类型：1-场地成本，2-人工成本，3-操作成本，4-运能成本，5-折旧成本")
-            @RequestParam(value = "costType", required = false) Integer costType) {
-        List<CostManagement> result = costManagementService.listCosts(costType);
+            @ApiParam("成本类型：1-场地成本，2-人工成本，3-操作成本，4-运能成本，5-折旧成本，6-其他")
+            @RequestParam(value = "costType", required = false) Integer costType,
+            @ApiParam(value = "月份，格式：yyyy-MM", required = true)
+            @RequestParam(value = "month") String month) {
+        List<CostManagement> result = costManagementService.listCosts(costType, month);
         return RestResult.ok(result);
     }
 
@@ -58,24 +54,37 @@ public class CostManagementController {
         return RestResult.ok(result);
     }
 
-    @GetMapping("/sum")
-    @ApiOperation("按类型统计成本")
-    public RestResult<List<CostTypeSummaryDTO>> sumGroupByCostType() {
-        List<CostTypeSummaryDTO> result = costManagementService.sumGroupByCostType();
+    @DeleteMapping("/batch/delete")
+    @ApiOperation("批量删除成本记录")
+    public RestResult<Boolean> deleteCostBatch(@RequestBody List<Long> ids) {
+        boolean result = costManagementService.deleteCostBatch(ids);
         return RestResult.ok(result);
     }
 
-    @GetMapping("/sum/total")
-    @ApiOperation("统计总成本")
-    public RestResult<BigDecimal> sumAllCosts() {
-        BigDecimal result = costManagementService.sumAllCosts();
+    @GetMapping("/summary/{month}")
+    @ApiOperation("成本汇总（按月份）")
+    public RestResult<CostSummaryDTO> getCostSummary(
+            @ApiParam(value = "月份，格式：yyyy-MM", required = true)
+            @PathVariable String month) {
+        CostSummaryDTO result = costManagementService.getCostSummary(month);
         return RestResult.ok(result);
     }
 
-    @GetMapping("/sum/type/{costType}")
-    @ApiOperation("统计指定类型成本")
-    public RestResult<BigDecimal> sumByCostType(@PathVariable Integer costType) {
-        BigDecimal result = costManagementService.sumByCostType(costType);
+    @GetMapping("/sum/type/{month}")
+    @ApiOperation("按类型分类汇总（按月份）")
+    public RestResult<List<CostTypeSummaryDTO>> sumGroupByCostTypeByMonth(
+            @ApiParam(value = "月份，格式：yyyy-MM", required = true)
+            @PathVariable String month) {
+        List<CostTypeSummaryDTO> result = costManagementService.sumGroupByCostTypeByMonth(month);
+        return RestResult.ok(result);
+    }
+
+    @GetMapping("/sum/total/{month}")
+    @ApiOperation("总成本汇总（按月份）")
+    public RestResult<BigDecimal> sumAllCostsByMonth(
+            @ApiParam(value = "月份，格式：yyyy-MM", required = true)
+            @PathVariable String month) {
+        BigDecimal result = costManagementService.sumAllCostsByMonth(month);
         return RestResult.ok(result);
     }
 }

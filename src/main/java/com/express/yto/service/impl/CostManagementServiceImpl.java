@@ -3,6 +3,7 @@ package com.express.yto.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.CostManagementMapper;
+import com.express.yto.dto.CostSummaryDTO;
 import com.express.yto.dto.CostTypeSummaryDTO;
 import com.express.yto.model.CostManagement;
 import com.express.yto.service.CostManagementService;
@@ -24,15 +25,13 @@ public class CostManagementServiceImpl extends ServiceImpl<CostManagementMapper,
     }
 
     @Override
-    public CostManagement getCostById(Long id) {
-        return getById(id);
-    }
-
-    @Override
-    public List<CostManagement> listCosts(Integer costType) {
+    public List<CostManagement> listCosts(Integer costType, String month) {
         QueryWrapper<CostManagement> queryWrapper = new QueryWrapper<>();
         if (costType != null) {
             queryWrapper.eq("cost_type", costType);
+        }
+        if (month != null && !month.isEmpty()) {
+            queryWrapper.eq("month", month);
         }
         queryWrapper.orderByDesc("create_time");
         return list(queryWrapper);
@@ -53,21 +52,46 @@ public class CostManagementServiceImpl extends ServiceImpl<CostManagementMapper,
     }
 
     @Override
-    public BigDecimal sumByCostType(Integer costType) {
-        BigDecimal sum = baseMapper.sumByCostType(costType);
+    public boolean deleteCostBatch(List<Long> ids) {
+        log.info("批量删除成本记录: ids={}", ids);
+        if (ids == null || ids.isEmpty()) {
+            log.warn("批量删除失败：ID列表为空");
+            return false;
+        }
+        return removeByIds(ids);
+    }
+
+    @Override
+    public BigDecimal sumAllCostsByMonth(String month) {
+        BigDecimal sum = baseMapper.sumTotalByMonth(month);
         return sum != null ? sum : BigDecimal.ZERO;
     }
 
     @Override
-    public BigDecimal sumAllCosts() {
-        List<CostManagement> list = list();
-        return list.stream()
-                .map(cost -> cost.getAmount() != null ? cost.getAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    public List<CostTypeSummaryDTO> sumGroupByCostType() {
+        return baseMapper.sumGroupByCostType();
     }
 
     @Override
-    public List<Map<String, Object>> sumGroupByCostType() {
-        return baseMapper.sumGroupByCostType();
+    public List<CostTypeSummaryDTO> sumGroupByCostTypeByMonth(String month) {
+        return baseMapper.sumGroupByCostTypeAndMonth(month);
+    }
+
+    @Override
+    public CostSummaryDTO getCostSummary(String month) {
+        CostSummaryDTO summary = new CostSummaryDTO();
+        summary.setMonth(month);
+
+        // 获取总成本
+        BigDecimal totalAmount = sumAllCostsByMonth(month);
+        summary.setTotalAmount(totalAmount);
+
+        // 获取按类型分类汇总
+        List<CostTypeSummaryDTO> typeSummaryList = sumGroupByCostTypeByMonth(month);
+        summary.setTypeSummaryList(typeSummaryList);
+
+        log.info("成本汇总: 月份={}, 总成本={}, 类型数量={}", month, totalAmount, typeSummaryList.size());
+
+        return summary;
     }
 }

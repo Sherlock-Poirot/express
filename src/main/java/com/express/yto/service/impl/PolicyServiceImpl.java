@@ -66,4 +66,11 @@ public class PolicyServiceImpl extends ServiceImpl<PolicyMapper, Policy> impleme
         queryWrapper.eq("policy_type", 1); // 1-基数返利
         return list(queryWrapper);
     }
+
+    @Override
+    public List<Policy> getDynamicRebatePolicies() {
+        QueryWrapper<Policy> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("policy_type", 3); // 3-动态返利
+        return list(queryWrapper);
+    }
 }

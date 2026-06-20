@@ -28,4 +28,10 @@ public interface PolicyService extends IService<Policy> {
      * @return 政策类型为1-基数返利的政策列表
      */
     List<Policy> getBaseRebatePolicies();
+
+    /**
+     * 获取动态返利政策列表
+     * @return 政策类型为3-动态返利的政策列表
+     */
+    List<Policy> getDynamicRebatePolicies();
 }

@@ -25,6 +25,9 @@ public class CostManagement {
     @TableField("amount")
     private BigDecimal amount;
 
+    @TableField("month")
+    private String month;
+
     @TableField("remark")
     private String remark;
 

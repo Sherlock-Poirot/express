@@ -1,6 +1,7 @@
 package com.express.yto.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.CostSummaryDTO;
 import com.express.yto.dto.CostTypeSummaryDTO;
 import com.express.yto.model.CostManagement;
 
@@ -11,17 +12,19 @@ public interface CostManagementService extends IService<CostManagement> {
 
     CostManagement createCost(CostManagement cost);
 
-    CostManagement getCostById(Long id);
-
-    List<CostManagement> listCosts(Integer costType);
+    List<CostManagement> listCosts(Integer costType, String month);
 
     CostManagement updateCost(Long id, CostManagement cost);
 
     boolean deleteCost(Long id);
 
-    BigDecimal sumByCostType(Integer costType);
+    boolean deleteCostBatch(List<Long> ids);
 
-    BigDecimal sumAllCosts();
+    BigDecimal sumAllCostsByMonth(String month);
 
     List<CostTypeSummaryDTO> sumGroupByCostType();
+
+    List<CostTypeSummaryDTO> sumGroupByCostTypeByMonth(String month);
+
+    CostSummaryDTO getCostSummary(String month);
 }

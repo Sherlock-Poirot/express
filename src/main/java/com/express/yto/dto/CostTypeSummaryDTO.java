@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Data
 public class CostTypeSummaryDTO {
 
-    /** 成本类型：1-场地成本，2-人工成本，3-操作成本，4-运能成本，5-折旧成本 */
+    /** 成本类型：1-场地成本，2-人工成本，3-操作成本，4-运能成本，5-折旧成本，6-其他 */
     private Integer costType;
 
     /** 成本类型名称 */
