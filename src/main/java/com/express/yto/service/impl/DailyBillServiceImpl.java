@@ -15,6 +15,7 @@ import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.CustomerStatisticsDTO;
 import com.express.yto.dto.CustomerStatisticsSummaryDTO;
 import com.express.yto.dto.DailyBillExcelDTO;
+import com.express.yto.dto.RegionDistributionDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.factory.FileHandlerFactory;
 import com.express.yto.model.DailyBill;
@@ -49,8 +50,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -91,10 +90,27 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         String fileName = file.getOriginalFilename();
         log.info("开始上传每日账单: {}", fileName);
 
+        byte[] fileBytes;
+        try {
+            fileBytes = file.getBytes();
+        } catch (Exception e) {
+            log.error("读取文件失败", e);
+            return "上传失败: " + e.getMessage();
+        }
+
+        LocalDate chargeDate = extractChargeDate(fileBytes, fileName);
+        if (chargeDate != null) {
+            log.info("文件中的日期为: {}, 将先删除数据库中该日期的已有数据", chargeDate);
+            QueryWrapper<DailyBill> deleteWrapper = new QueryWrapper<>();
+            deleteWrapper.eq("charge_date", chargeDate);
+            int deleteCount = baseMapper.delete(deleteWrapper);
+            log.info("已删除数据库中日期为 {} 的记录 {} 条", chargeDate, deleteCount);
+        }
+
         List<DailyBill> dataList = new ArrayList<>(BATCH_SIZE);
         int[] counts = {0, 0}; // successCount, failCount
 
-        try (InputStream is = file.getInputStream()) {
+        try (InputStream is = new java.io.ByteArrayInputStream(fileBytes)) {
             ExcelReaderBuilder readerBuilder = EasyExcel.read(is, DailyBillExcelDTO.class, 
                 new AnalysisEventListener<DailyBillExcelDTO>() {
                     @Override
@@ -138,6 +154,39 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
 
         log.info("每日账单上传完成，成功{}条，失败{}条", counts[0], counts[1]);
         return String.format("每日账单上传完成，成功%d条，失败%d条", counts[0], counts[1]);
+    }
+
+    private LocalDate extractChargeDate(byte[] fileBytes, String fileName) {
+        try (InputStream is = new java.io.ByteArrayInputStream(fileBytes)) {
+            final LocalDate[] chargeDate = {null};
+            ExcelReaderBuilder readerBuilder = EasyExcel.read(is, DailyBillExcelDTO.class,
+                new AnalysisEventListener<DailyBillExcelDTO>() {
+                    @Override
+                    public void invoke(DailyBillExcelDTO dto, AnalysisContext context) {
+                        if (chargeDate[0] == null) {
+                            try {
+                                DailyBill bill = convertToEntity(dto);
+                                if (bill.getChargeDate() != null) {
+                                    chargeDate[0] = bill.getChargeDate();
+                                }
+                            } catch (Exception e) {
+                                log.warn("提取日期失败: {}", e.getMessage());
+                            }
+                        }
+                    }
+                    @Override
+                    public void doAfterAllAnalysed(AnalysisContext context) {
+                    }
+                });
+            if (fileName != null && fileName.toLowerCase().endsWith(".csv")) {
+                readerBuilder.excelType(ExcelTypeEnum.CSV).charset(StandardCharsets.UTF_8);
+            }
+            readerBuilder.sheet().doRead();
+            return chargeDate[0];
+        } catch (Exception e) {
+            log.error("提取日期失败", e);
+            return null;
+        }
     }
 
     private DailyBill convertToEntity(DailyBillExcelDTO dto) {
@@ -894,5 +943,23 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         log.info("动态返利计算完成: 数量={}, 返利单价={}, 返利={}", weight0To3Count, amount, dynamicRebate);
 
         return dynamicRebate;
+    }
+
+    @Override
+    public List<RegionDistributionDTO> getRegionDistributionByDate(LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+        return baseMapper.selectRegionDistribution(date);
+    }
+
+    @Override
+    public BigDecimal sumTotalAmountByDate(LocalDate date) {
+        return baseMapper.sumTotalAmountByDate(date);
+    }
+
+    @Override
+    public Long countByDate(LocalDate date) {
+        return baseMapper.countByDate(date);
     }
 }

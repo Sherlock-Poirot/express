@@ -81,8 +81,20 @@
             END
         </set>
         WHERE (merchant_code, merchant_name) IN
-        <foreach collection="list" item="item" separator="," open="(" close=")">
-            (#{item.merchantCode}, #{item.merchantName})
+        <foreach collection="list" item="item" separator="," open="(" close=")">            (#{item.merchantCode}, #{item.merchantName})
         </foreach>
     </update>
+
+    <select id="selectRegionDistribution" resultType="com.express.yto.dto.RegionDistributionDTO">
+        SELECT
+            settle_province as province,
+            COUNT(*) as totalCount,
+            SUM(total_amount) as totalAmount
+        FROM t_daily_bill
+        WHERE charge_date = #{date}
+          AND settle_province IS NOT NULL
+          AND settle_province != ''
+        GROUP BY settle_province
+        ORDER BY totalCount DESC
+    </select>
 </mapper>
