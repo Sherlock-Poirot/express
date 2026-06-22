@@ -48,9 +48,6 @@ public class FixedFeeServiceImpl extends ServiceImpl<FixedFeeMapper, FixedFee> i
     private CustomerService customerService;
 
     @Autowired
-    private FixedFeeService fixedFeeService;
-
-    @Autowired
     private OverFeeService overFeeService;
 
     @Autowired
@@ -101,7 +98,7 @@ public class FixedFeeServiceImpl extends ServiceImpl<FixedFeeMapper, FixedFee> i
         // 固定重量区间价格
         QueryWrapper<FixedFee> fixWrapper = new QueryWrapper<>();
         fixWrapper.eq("code", kCode);
-        List<FixedFee> fixedFeeList = fixedFeeService.list(fixWrapper);
+        List<FixedFee> fixedFeeList = this.list(fixWrapper);
 
         // 续重费用
         QueryWrapper<OverFee> overWrapper = new QueryWrapper<>();

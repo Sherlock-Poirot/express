@@ -9,19 +9,17 @@ import springfox.documentation.service.ApiInfo;
 import springfox.documentation.service.Contact;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 /**
  * @author Detective
  * @date Created in 2024/6/22
  */
-@EnableSwagger2
 @Configuration
 public class SwaggerConfig {
 
     @Bean
     public Docket createRestApi() {
-        return new Docket(DocumentationType.SWAGGER_2) // SWAGGER_2
+        return new Docket(DocumentationType.OAS_30) // 3.0 版本使用 OAS_30
                 .apiInfo(apiInfo())
                 .select()
                 // 此处自行修改为自己的 Controller 包路径
@@ -37,6 +35,4 @@ public class SwaggerConfig {
                 .contact(new Contact("Detective Stone", null, "13750846673@163.com"))
                 .build();
     }
-
-
 }

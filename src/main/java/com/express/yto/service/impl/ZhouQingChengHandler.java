@@ -2,6 +2,7 @@ package com.express.yto.service.impl;
 
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.service.EmployeeService;
+import org.springframework.context.annotation.Lazy;
 import com.express.yto.service.ExcelFileHandler;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class ZhouQingChengHandler implements ExcelFileHandler {
 
     @Autowired
+    @Lazy
     private EmployeeService employeeService;
 
     @Override

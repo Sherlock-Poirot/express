@@ -22,6 +22,7 @@ import com.express.yto.model.OverFee;
 import com.express.yto.service.AreaService;
 import com.express.yto.service.EmployeeBillHandler;
 import com.express.yto.service.EmployeeService;
+import org.springframework.context.annotation.Lazy;
 import com.express.yto.service.ExtraFeeService;
 import com.express.yto.service.FixedFeeService;
 import com.express.yto.service.OverFeeService;
@@ -49,6 +50,7 @@ import org.springframework.stereotype.Component;
 public class NormalEmployeeHandler implements EmployeeBillHandler {
 
     @Autowired
+    @Lazy
     private EmployeeService employeeService;
 
     private static String EXCEL_EXTENSIONS = ".xlsx";
