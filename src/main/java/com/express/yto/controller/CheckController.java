@@ -3,7 +3,7 @@ package com.express.yto.controller;
 import com.express.yto.dto.CheckInput;
 import com.express.yto.dto.RestResult;
 import com.express.yto.service.CheckService;
-import io.swagger.annotations.ApiOperation;
+
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +23,6 @@ public class CheckController {
     private CheckService checkService;
 
     @PostMapping("/checkAmount")
-    @ApiOperation("检查总金额")
     public RestResult<List<String>> checkAmount(@RequestBody CheckInput input){
         return checkService.checkAmount(input.getReadPath(), input.getCheckPath());
     }

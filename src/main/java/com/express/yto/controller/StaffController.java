@@ -5,7 +5,7 @@ import com.express.yto.dto.RestResult;
 import com.express.yto.dto.StaffInput;
 import com.express.yto.model.ContractStaff;
 import com.express.yto.service.ContractStaffService;
-import io.swagger.annotations.ApiOperation;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +26,6 @@ public class StaffController {
     private ContractStaffService contractStaffService;
 
     @GetMapping("/page")
-    @ApiOperation("分页")
     public RestResult<IPage<ContractStaff>> page(@RequestParam(required = false) String staffName,
             @RequestParam(required = false) String phone,
             @RequestParam("pageNo") Integer pageNo, @RequestParam("pageSize") Integer pageSize) {
@@ -34,14 +33,12 @@ public class StaffController {
     }
 
     @PostMapping("/add")
-    @ApiOperation("新增员工")
     public RestResult<String> add(@RequestBody StaffInput input) {
         contractStaffService.add(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/update")
-    @ApiOperation("编辑员工")
     public RestResult<String> update(@RequestBody StaffInput input) {
         contractStaffService.update(input);
         return RestResult.ok("操作成功");

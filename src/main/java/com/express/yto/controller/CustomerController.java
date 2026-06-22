@@ -10,8 +10,8 @@ import com.express.yto.dto.PriceDeleteInput;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.Customer;
 import com.express.yto.service.CustomerService;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.Tag;
+
+
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,13 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/customer")
-@ApiOperation("客户功能")
 public class CustomerController {
 
     @Autowired
     private CustomerService customerService;
 
-    @ApiOperation("通过excel文件导入")
     @PostMapping("/importByExcel")
     public RestResult<String> importByExcel(@RequestParam String filePath){
         customerService.importByExcel(filePath);
@@ -41,53 +39,45 @@ public class CustomerController {
     }
 
 
-    @ApiOperation("新增")
     @PostMapping("/add")
     public RestResult<String> add(@RequestBody CustomerDetailDTO input){
         customerService.add(input);
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("批量删除")
     @PostMapping("/batchDelete")
     public RestResult<String> add(@RequestBody List<Long> ids){
         customerService.delete(ids);
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("分页查询")
     @PostMapping("/search")
     public RestResult<IPage<Customer>> search(@RequestBody CustomerSearchInput input){
         return RestResult.ok(customerService.search(input));
     }
 
-    @ApiOperation("客户详情")
     @GetMapping("/detail")
     public RestResult<CustomerDetailDTO> getDetail(@RequestParam("code") String code){
         return RestResult.ok(customerService.getDetail(code));
     }
 
-    @ApiOperation("编辑客户")
     @PostMapping("/update")
     public RestResult<String> updateCustomer(@RequestBody CustomerDetailDTO input){
         customerService.updateCustomer(input);
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("客户价格详情")
     @GetMapping("/price")
     public RestResult<List<CustomerPriceDetailDTO>> getPrice(@RequestParam String kCode){
         return RestResult.ok(customerService.getPrice(kCode));
     }
 
-    @ApiOperation("删除价格表")
     @PostMapping("/deletePrice")
     public RestResult<String> deletePrice(@RequestBody PriceDeleteInput input){
         customerService.deletePrice(input);
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("新增客户价格")
     @PostMapping("/addPrice")
     public RestResult<String> addPrice(@RequestBody List<CustomerPriceInput> input){
         customerService.addPrice(input);

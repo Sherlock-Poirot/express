@@ -4,8 +4,8 @@ import com.express.yto.dto.DealDataInput;
 import com.express.yto.dto.PreDealDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.service.DealDataService;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+
+
 import java.time.LocalDateTime;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,14 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/dealData")
 @Slf4j
-@Api(tags = "数据处理控制层")
 public class DealDataController {
 
     @Autowired
     private DealDataService dealDataService;
 
     @PostMapping("/deal")
-    @ApiOperation("处理账单")
     public RestResult<String> deal(@RequestBody DealDataInput input) {
         log.info("开始时间，{}", LocalDateTime.now());
         dealDataService.doDeal(input.getReadPath(), input.getExportPath(),
@@ -40,34 +38,29 @@ public class DealDataController {
     }
 
     @GetMapping("/preDeal")
-    @ApiOperation("账单计算前置校验")
     public RestResult<PreDealDTO> preDeal(@RequestParam String path) {
         return dealDataService.preDeal(path);
     }
 
     @GetMapping("/count")
-    @ApiOperation("校验账单拆分数量")
     public RestResult<String> count(@RequestParam String path) {
         dealDataService.count(path);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/fourRate")
-    @ApiOperation("查看所有账单4区是否超比例")
     public RestResult<String> fourRate(@RequestBody DealDataInput input) {
         dealDataService.fourRate(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/compile")
-    @ApiOperation("汇总记录")
     public RestResult<String> compile(@RequestBody DealDataInput input) {
         dealDataService.compile(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/backUp")
-    @ApiOperation("备份数据")
     public RestResult<String> backUp() {
         dealDataService.backUp();
         return RestResult.ok("操作成功");

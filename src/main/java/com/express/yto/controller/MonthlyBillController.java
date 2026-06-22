@@ -6,7 +6,7 @@ import com.express.yto.dto.RestResult;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.service.MonthlyBillService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import io.swagger.annotations.ApiOperation;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/monthlyBill")
-@ApiOperation("月度账单功能")
 @Validated
 @Slf4j
 public class MonthlyBillController {
@@ -33,14 +32,12 @@ public class MonthlyBillController {
     @Autowired
     private MonthlyBillService monthlyBillService;
 
-    @ApiOperation("分页查询")
     @PostMapping("/search")
     @SaCheckPermission("settlement:bill")
     public RestResult<IPage<MonthlyBill>> search(@RequestBody @Valid MonthlyBillSearchInput input) {
         return RestResult.ok(monthlyBillService.search(input));
     }
 
-    @ApiOperation("编辑")
     @PostMapping("/update")
     @SaCheckPermission("settlement:bill")
     public RestResult<String> update(@RequestBody MonthlyBill input) {
@@ -48,14 +45,12 @@ public class MonthlyBillController {
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("详情")
     @GetMapping("/detail")
     @SaCheckPermission("settlement:bill")
     public RestResult<MonthlyBill> getDetail(@RequestParam("id") Long id) {
         return RestResult.ok(monthlyBillService.getById(id));
     }
 
-    @ApiOperation("生成汇总账单")
     @PostMapping("/generate")
     @SaCheckPermission("settlement:bill")
     public RestResult<String> generate(@RequestParam("billMonth") String billMonth) {
@@ -63,7 +58,6 @@ public class MonthlyBillController {
         return RestResult.ok("操作成功");
     }
 
-    @ApiOperation("汇总导出（简化版）")
     @GetMapping("/export")
     @SaCheckPermission("settlement:bill")
     public void export(@RequestParam("billMonth") String billMonth, HttpServletResponse response) {
@@ -72,7 +66,7 @@ public class MonthlyBillController {
             monthlyBillService.exportSummaryByBillMonth(billMonth, outputStream);
 
             byte[] data = outputStream.toByteArray();
-            String fileName = billMonth + "月账单汇总.xlsx";
+            String fileName = billMonth + "月账单汇�?xlsx";
             String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
                     .replaceAll("\\+", "%20");
 
@@ -99,7 +93,6 @@ public class MonthlyBillController {
         }
     }
 
-    @ApiOperation("导出所有明细")
     @GetMapping("/exportDetail")
     @SaCheckPermission("settlement:bill")
     public void exportDetail(
@@ -121,11 +114,11 @@ public class MonthlyBillController {
             monthlyBillService.exportAllDetail(billMonth, response.getOutputStream());
             response.getOutputStream().flush();
 
-            log.info("导出所有明细成功: billMonth={}", billMonth);
+            log.info("导出所有明细成�? billMonth={}", billMonth);
         } catch (Exception e) {
             log.error("导出所有明细失败", e);
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "导出失败：" + e.getMessage());
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "导出失败: " + e.getMessage());
             } catch (IOException ioException) {
                 log.error("设置错误响应失败", ioException);
             }

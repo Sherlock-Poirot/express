@@ -4,7 +4,7 @@ import com.express.yto.dto.AreaDTO;
 import com.express.yto.dto.AreaListDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.service.AreaService;
-import io.swagger.annotations.ApiOperation;
+
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/area")
-@ApiOperation("区域管理")
 public class AreaController {
 
     @Autowired

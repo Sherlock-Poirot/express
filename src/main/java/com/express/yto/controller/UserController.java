@@ -7,15 +7,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.express.yto.dao.SysUserMapper;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.SysUser;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
-@Api(tags = "用户管理")
 @RestController
 @RequestMapping("/user")
 @SaCheckLogin
@@ -26,7 +25,6 @@ public class UserController {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    @ApiOperation("分页查询用户")
     @GetMapping("/page")
     public RestResult<Page<SysUser>> page(
             @RequestParam(defaultValue = "1") Integer pageNo,
@@ -48,13 +46,11 @@ public class UserController {
         return RestResult.ok(sysUserMapper.selectPage(page, wrapper));
     }
 
-    @ApiOperation("获取用户详情")
     @GetMapping("/{id}")
     public RestResult<SysUser> detail(@PathVariable Long id) {
         return RestResult.ok(sysUserMapper.selectById(id));
     }
 
-    @ApiOperation("新增用户")
     @PostMapping("/add")
     @SaCheckRole("ADMIN")
     public RestResult<String> add(@RequestBody SysUser user) {
@@ -68,7 +64,6 @@ public class UserController {
         return RestResult.ok("新增成功");
     }
 
-    @ApiOperation("更新用户")
     @PostMapping("/update")
     @SaCheckRole("ADMIN")
     public RestResult<String> update(@RequestBody SysUser user) {
@@ -81,7 +76,6 @@ public class UserController {
         return RestResult.ok("更新成功");
     }
 
-    @ApiOperation("删除用户")
     @PostMapping("/delete")
     @SaCheckRole("ADMIN")
     public RestResult<String> delete(@RequestBody Long id) {
@@ -89,7 +83,6 @@ public class UserController {
         return RestResult.ok("删除成功");
     }
 
-    @ApiOperation("更新用户状态")
     @PostMapping("/status")
     @SaCheckRole("ADMIN")
     public RestResult<String> status(@RequestParam Long id, @RequestParam Integer status) {

@@ -1,6 +1,6 @@
 package com.express.yto.dto;
 
-import io.swagger.annotations.ApiModelProperty;
+
 import java.time.YearMonth;
 import lombok.Data;
 
@@ -22,9 +22,8 @@ public class DealDataInput {
     private String exportPath;
 
     /**
-     * 是否是春节
+     * 是否是春�?
      */
-    @ApiModelProperty(value = "是否春节", example = "false", dataType = "boolean")
     private Boolean springFestival = false;
 
     /**
@@ -35,7 +34,6 @@ public class DealDataInput {
     /**
      * 月份
      */
-    @ApiModelProperty(value = "月份")
     private String month;
 
 

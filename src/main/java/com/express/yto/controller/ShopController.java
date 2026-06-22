@@ -7,7 +7,7 @@ import com.express.yto.dto.ShopEmpInput;
 import com.express.yto.model.ShopEmp;
 import com.express.yto.service.CustomerService;
 import com.express.yto.service.ShopService;
-import io.swagger.annotations.ApiOperation;
+
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,7 +33,6 @@ public class ShopController {
     private CustomerService customerService;
 
     @GetMapping("/search")
-    @ApiOperation("店铺列表（分页）")
     public RestResult<IPage<ShopEmp>> search(@RequestParam(value = "code", required = false) String code,
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "empName", required = false) String empName,
@@ -43,35 +42,30 @@ public class ShopController {
     }
 
     @PostMapping("/batchDelete")
-    @ApiOperation("批量删除")
     public RestResult<String> batchDelete(@RequestBody List<Integer> ids) {
         shopService.batchDelete(ids);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/add")
-    @ApiOperation("新增")
     public RestResult<String> add(@RequestBody ShopEmpInput input) {
         shopService.add(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/update")
-    @ApiOperation("编辑")
     public RestResult<String> update(@RequestBody ShopEmpInput input) {
         shopService.update(input);
         return RestResult.ok("操作成功");
     }
 
     @PostMapping("/import")
-    @ApiOperation("导入店铺信息")
     public RestResult<Integer> importShop(@RequestParam("file") MultipartFile file) {
         int count = shopService.importShop(file);
         return RestResult.ok(count);
     }
 
     @GetMapping("/fuzzyMatch")
-    @ApiOperation("模糊匹配客户代码和名称")
     public RestResult<List<CustomerCodeAndNameDTO>> fuzzyMatch(
             @RequestParam(name = "code", required = false) String code,
             @RequestParam(name = "name", required = false) String name) {
