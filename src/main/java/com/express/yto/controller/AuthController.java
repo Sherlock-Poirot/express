@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 /**
- * 认证控制�? */
+ * 认证控制器
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthController {

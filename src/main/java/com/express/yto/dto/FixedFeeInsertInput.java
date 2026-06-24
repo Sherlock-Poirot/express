@@ -35,7 +35,7 @@ public class FixedFeeInsertInput {
     private BigDecimal fee;
 
     /**
-     * 开始时�?
+     * 开始时间
      */
     private LocalDate startTime;
 

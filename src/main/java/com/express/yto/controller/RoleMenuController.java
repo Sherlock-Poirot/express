@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 角色菜单关联控制�?
+ * 角色菜单关联控制器
  */
 @RestController
 @RequestMapping("/role-menu")

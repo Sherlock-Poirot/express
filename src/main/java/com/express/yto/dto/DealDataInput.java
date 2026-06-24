@@ -22,7 +22,7 @@ public class DealDataInput {
     private String exportPath;
 
     /**
-     * 是否是春�?
+     * 是否是春节
      */
     private Boolean springFestival = false;
 

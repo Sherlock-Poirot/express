@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 菜单控制�?
+ * 菜单控制器
  */
 @RestController
 @RequestMapping("/menu")
@@ -34,7 +34,7 @@ public class MenuController {
     }
 
     /**
-     * 获取所有菜单树（超级管理员�?
+     * 获取所有菜单树（超级管理员）
      */
     @GetMapping("/all-tree")
     @SaCheckRole("ADMIN")
