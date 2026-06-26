@@ -109,6 +109,12 @@ public class WaybillDetail {
     private String materialType;
 
     /**
+     * 承包区客户类型（散件、淘宝、限定、特批）
+     */
+    @TableField(value = "emp_type")
+    private String empType;
+
+    /**
      * 加收（金额）
      */
     @TableField(value = "extra_fee")
@@ -166,6 +172,8 @@ public class WaybillDetail {
     public static final String COL_SETTLE_NAME = "settle_name";
 
     public static final String COL_MATERIAL_TYPE = "material_type";
+
+    public static final String COL_EMP_TYPE = "emp_type";
 
     public static final String COL_EXTRA_FEE = "extra_fee";
 

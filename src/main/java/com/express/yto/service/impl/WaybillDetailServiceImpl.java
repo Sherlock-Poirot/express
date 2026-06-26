@@ -5,6 +5,10 @@ import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.CustomerMapper;
+import com.express.yto.dao.ExtraFeeMapper;
+import com.express.yto.dao.FixedFeeMapper;
+import com.express.yto.dao.OverFeeMapper;
+import com.express.yto.dao.PrepaymentMapper;
 import com.express.yto.dao.ShopEmpMapper;
 import com.express.yto.dao.SysTaskMapper;
 import com.express.yto.dao.WaybillDetailMapper;
@@ -13,9 +17,16 @@ import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
 import com.express.yto.dto.EmpBillInfoDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
+import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.enums.ImportStatus;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.factory.FileHandlerFactory;
+import com.express.yto.model.Customer;
+import com.express.yto.model.ExtraFee;
+import com.express.yto.model.FixedFee;
+import com.express.yto.model.OverFee;
+import com.express.yto.model.Prepayment;
+import com.express.yto.model.ShopEmp;
 import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
 import com.express.yto.service.EmployeeService;
@@ -25,9 +36,12 @@ import com.express.yto.service.WaybillDetailService;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
@@ -61,6 +75,18 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Autowired
     private CustomerMapper customerMapper;
+
+    @Autowired
+    private ExtraFeeMapper extraFeeMapper;
+
+    @Autowired
+    private FixedFeeMapper fixedFeeMapper;
+
+    @Autowired
+    private OverFeeMapper overFeeMapper;
+
+    @Autowired
+    private PrepaymentMapper prepaymentMapper;
 
     @Autowired
     private WaybillAsyncService waybillAsyncService;
@@ -124,6 +150,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         List<ShopCustomerNameDTO> shopList = shopEmpMapper.getShopCustomer();
 
         for (ShopCustomerNameDTO dto : billShopCustomerList) {
+            // 根据店铺名称和物料类型查找对应的店铺信息
             ShopCustomerNameDTO shop = shopList.stream()
                     .filter(s -> s.getShopName().equals(dto.getShopName()) 
                             && s.getMaterialType().equals(dto.getMaterialType()))
@@ -191,6 +218,148 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     }
 
     @Override
+    public ValidationResultDTO validateData(String billMonth) {
+        ValidationResultDTO result = ValidationResultDTO.builder().valid(true).build();
+
+        int count = waybillDetailMapper.countByBillMonth(billMonth);
+        if (count == 0) {
+            log.info("{} 月没有数据，校验通过", billMonth);
+            return result;
+        }
+
+        QueryWrapper<WaybillDetail> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("bill_month", billMonth);
+        List<WaybillDetail> waybillList = waybillDetailMapper.selectList(queryWrapper);
+
+        // 查询t_shop_emp表中所有shop_id，用于校验settle_code是否存在
+        Set<String> shopIds = new HashSet<>();
+        QueryWrapper<ShopEmp> shopEmpQuery = new QueryWrapper<>();
+        shopEmpQuery.select("shop_id");
+        List<ShopEmp> shopEmps = shopEmpMapper.selectList(shopEmpQuery);
+        for (ShopEmp shopEmp : shopEmps) {
+            shopIds.add(shopEmp.getShopId());
+        }
+
+        // 查询t_customer表中所有code，用于校验send_customer是否存在
+        Set<String> customerCodes = new HashSet<>();
+        QueryWrapper<Customer> customerQuery = new QueryWrapper<>();
+        customerQuery.select("code");
+        List<Customer> customers = customerMapper.selectList(customerQuery);
+        for (Customer customer : customers) {
+            customerCodes.add(customer.getCode());
+        }
+
+        // 查询t_extra_fee表中所有code，用于校验是否有额外费用配置
+        Set<String> extraFeeCodes = new HashSet<>();
+        QueryWrapper<ExtraFee> extraFeeQuery = new QueryWrapper<>();
+        extraFeeQuery.select("code");
+        List<ExtraFee> extraFees = extraFeeMapper.selectList(extraFeeQuery);
+        for (ExtraFee extraFee : extraFees) {
+            extraFeeCodes.add(extraFee.getCode());
+        }
+
+        // 查询t_fixed_fee表中所有code，用于校验是否有固定费用配置
+        Set<String> fixedFeeCodes = new HashSet<>();
+        QueryWrapper<FixedFee> fixedFeeQuery = new QueryWrapper<>();
+        fixedFeeQuery.select("code");
+        List<FixedFee> fixedFees = fixedFeeMapper.selectList(fixedFeeQuery);
+        for (FixedFee fixedFee : fixedFees) {
+            fixedFeeCodes.add(fixedFee.getCode());
+        }
+
+        // 查询t_over_fee表中所有code，用于校验是否有续重费用配置
+        Set<String> overFeeCodes = new HashSet<>();
+        QueryWrapper<OverFee> overFeeQuery = new QueryWrapper<>();
+        overFeeQuery.select("code");
+        List<OverFee> overFees = overFeeMapper.selectList(overFeeQuery);
+        for (OverFee overFee : overFees) {
+            overFeeCodes.add(overFee.getCode());
+        }
+
+        // 查询t_prepayment表中所有code，用于校验是否有预付款配置
+        Set<String> prepaymentCodes = new HashSet<>();
+        QueryWrapper<Prepayment> prepaymentQuery = new QueryWrapper<>();
+        prepaymentQuery.select("code");
+        List<Prepayment> prepayments = prepaymentMapper.selectList(prepaymentQuery);
+        for (Prepayment prepayment : prepayments) {
+            prepaymentCodes.add(prepayment.getCode());
+        }
+
+        // 存储校验错误信息，key为客户编码_客户名称，value为错误描述
+        Map<String, String> checkedErrors = new HashMap<>();
+
+        for (WaybillDetail waybill : waybillList) {
+            String sendCustomer = waybill.getSendCustomer();
+            String sendCustomerName = waybill.getSendCustomerName();
+            String settleCode = waybill.getSettleCode();
+            String empType = waybill.getEmpType();
+
+            // 跳过客户编码为空的数据
+            if (sendCustomer == null || sendCustomer.trim().isEmpty()) {
+                continue;
+            }
+
+            // 组合错误key：客户编码_客户名称，用于去重
+            String errorKey = sendCustomer + "_" + sendCustomerName;
+
+            // 校验规则1：settle_code 在 t_shop_emp 的 shop_id 是否存在
+            if (settleCode != null && !settleCode.trim().isEmpty() && !shopIds.contains(settleCode)) {
+                String errorMsg = "settle_code(" + settleCode + ")在t_shop_emp表中不存在";
+                String existingError = checkedErrors.get(errorKey);
+                // 避免重复添加相同的错误信息
+                if (existingError == null || !existingError.contains(errorMsg)) {
+                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
+                }
+            }
+
+            // 如果 emp_type 有值，则跳过规则2和规则3（承包区数据不需要这些校验）
+            if (empType != null && !empType.trim().isEmpty()) {
+                continue;
+            }
+
+            // 校验规则2：send_customer 在 t_customer 的 code 是否存在
+            if (!customerCodes.contains(sendCustomer)) {
+                String errorMsg = "send_customer(" + sendCustomer + ")在t_customer表中不存在";
+                String existingError = checkedErrors.get(errorKey);
+                if (existingError == null || !existingError.contains(errorMsg)) {
+                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
+                }
+            }
+
+            // 校验规则3：send_customer 在 t_extra_fee, t_fixed_fee, t_over_fee, t_prepayment 是否有数据
+            boolean hasExtraFee = extraFeeCodes.contains(sendCustomer);
+            boolean hasFixedFee = fixedFeeCodes.contains(sendCustomer);
+            boolean hasOverFee = overFeeCodes.contains(sendCustomer);
+            boolean hasPrepayment = prepaymentCodes.contains(sendCustomer);
+
+            // 四个表中都没有数据才报错
+            if (!hasExtraFee && !hasFixedFee && !hasOverFee && !hasPrepayment) {
+                String errorMsg = "send_customer(" + sendCustomer + ")在t_extra_fee/t_fixed_fee/t_over_fee/t_prepayment表中均无数据";
+                String existingError = checkedErrors.get(errorKey);
+                if (existingError == null || !existingError.contains(errorMsg)) {
+                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
+                }
+            }
+        }
+
+        // 将错误信息转换为ValidationErrorDTO列表
+        for (Map.Entry<String, String> entry : checkedErrors.entrySet()) {
+            String[] keyParts = entry.getKey().split("_", 2);
+            String customerCode = keyParts[0];
+            String customerName = keyParts.length > 1 ? keyParts[1] : "";
+            result.addError(customerName, customerCode, entry.getValue());
+        }
+
+        // 如果有错误，标记校验不通过
+        if (!result.getErrors().isEmpty()) {
+            result.markInvalid();
+            log.warn("数据校验不通过，共有 {} 个客户存在问题", result.getErrors().size());
+        }
+
+        return result;
+    }
+
+    @Override
     public String importWaybillDiff(MultipartFile file) {
         String taskNo = IdUtil.getSnowflakeNextIdStr();
         SysTask task = new SysTask();
@@ -227,6 +396,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         for (int i = 0; i < partitions.size(); i++) {
             List<ContractShopExcelDTO> batch = partitions.get(i);
 
+            // 将ContractShopExcelDTO转换为BillIdAndFeeDTO，用于批量更新
             List<BillIdAndFeeDTO> idAndFeeList = batch.stream().map(e -> {
                 BillIdAndFeeDTO idAndFee = new BillIdAndFeeDTO();
                 idAndFee.setBillId(e.getId());
@@ -241,6 +411,10 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         log.info("更新运单费用完成，总计更新 {} 条", dealList.size());
     }
 
+    /**
+     * 异步执行直营客户账单计算任务
+     * @param codeAndName 直营客户编码和名称列表
+     */
     private void executeDirectCustomerTask(List<CustomerCodeAndNameDTO> codeAndName) {
         if (codeAndName == null || codeAndName.isEmpty()) {
             log.info("【直营客户账单】暂无数据需要处理");
@@ -255,6 +429,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         log.info("【直营客户账单】开始异步处理，总数据量：{}，分成 {} 个批次执行（每批 {} 个客户）",
                 codeAndName.size(), splitList.size(), batchSize);
 
+        // 每个批次提交到线程池异步执行
         for (List<CustomerCodeAndNameDTO> subList : splitList) {
             asyncExecutor.execute(() -> {
                 try {
@@ -279,7 +454,10 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         }
     }
 
-    // 计算账单
+    /**
+     * 计算单个客户的账单
+     * @param dto 客户编码和名称
+     */
     private void calculateDirectBill(CustomerCodeAndNameDTO dto) {
         // 如果是陈丽芝，梁瑞阳，ceo南山趣多多，周清成，赵洋洋维护客户 特别处理
         log.info("开始处理{}数据", dto.getCustomerName());
@@ -287,6 +465,8 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         QueryWrapper<WaybillDetail> qw = new QueryWrapper<>();
         qw.eq("send_customer", dto.getCustomerCode());
         List<WaybillDetail> waybillDetailList = waybillDetailMapper.selectList(qw);
+        
+        // 将WaybillDetail转换为ContractShopExcelDTO，用于后续费用计算
         List<ContractShopExcelDTO> list = waybillDetailList.stream().map(detail -> {
             ContractShopExcelDTO bill = new ContractShopExcelDTO();
 

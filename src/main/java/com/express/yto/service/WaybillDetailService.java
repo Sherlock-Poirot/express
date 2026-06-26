@@ -1,6 +1,7 @@
 package com.express.yto.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
 import java.time.LocalDate;
@@ -22,4 +23,6 @@ public interface WaybillDetailService extends IService<WaybillDetail> {
     void calculateBill(String billMonth);
 
     String importWaybillDiff(MultipartFile file);
+
+    ValidationResultDTO validateData(String billMonth);
 }
