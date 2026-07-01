@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.KpiSignRecordMapper">
+
+    <select id="selectRecordPage" resultType="com.express.yto.model.KpiSignRecord">
+        SELECT * FROM t_kpi_sign_record
+        WHERE 1=1
+        <if test="startDate != null and startDate != ''">
+            AND data_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND data_date &lt;= #{endDate}
+        </if>
+        <if test="courierName != null and courierName != ''">
+            AND courier_name LIKE CONCAT('%', #{courierName}, '%')
+        </if>
+        <if test="isQualified != null">
+            AND is_qualified = #{isQualified}
+        </if>
+        <if test="waybillNo != null and waybillNo != ''">
+            AND waybill_no LIKE CONCAT('%', #{waybillNo}, '%')
+        </if>
+        <if test="fakeSignType != null and fakeSignType != ''">
+            AND fake_sign_type = #{fakeSignType}
+        </if>
+        ORDER BY data_date DESC, report_time DESC
+    </select>
+
+    <select id="selectMonthlySummary" resultType="com.express.yto.dto.KpiMonthlySummaryDTO">
+        SELECT month, COUNT(*) AS totalCount,
+               SUM(CASE WHEN fake_sign_type = '投诉' THEN 1 ELSE 0 END) AS complaintCount,
+               SUM(CASE WHEN fake_sign_type = '虚假签收' THEN 1 ELSE 0 END) AS fakeSignCount,
+               SUM(CASE WHEN fake_sign_type NOT IN ('投诉', '虚假签收') THEN 1 ELSE 0 END) AS otherCount,
+               ROUND(IFNULL(SUM(CASE WHEN pre_sign_call = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS preSignCallRate,
+               ROUND(IFNULL(SUM(CASE WHEN is_qualified = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS qualifiedRate,
+               ROUND(AVG(efficiency_hours), 2) AS avgEfficiencyHours
+        FROM t_kpi_sign_record WHERE month = #{month} GROUP BY month
+    </select>
+
+    <select id="selectCourierRank" resultType="com.express.yto.dto.KpiCourierRankDTO">
+        SELECT courier_code AS courierCode, courier_name AS courierName,
+               COUNT(*) AS totalCount,
+               SUM(CASE WHEN is_qualified = 1 THEN 1 ELSE 0 END) AS qualifiedCount,
+               ROUND(IFNULL(SUM(CASE WHEN is_qualified = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS qualifiedRate,
+               ROUND(IFNULL(SUM(CASE WHEN pre_sign_call = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS preSignCallRate,
+               ROUND(AVG(efficiency_hours), 2) AS avgEfficiencyHours
+        FROM t_kpi_sign_record
+        WHERE month = #{month} AND courier_name IS NOT NULL AND courier_name != ''
+        GROUP BY courier_code, courier_name ORDER BY totalCount DESC
+    </select>
+
+    <select id="selectFakeSignTypeStat" resultType="com.express.yto.dto.KpiFakeSignTypeDTO">
+        SELECT fake_sign_type AS fakeSignType, COUNT(*) AS count,
+               ROUND(COUNT(*) / (SELECT COUNT(*) FROM t_kpi_sign_record WHERE month = #{month}) * 100, 2) AS percentage
+        FROM t_kpi_sign_record
+        WHERE month = #{month} AND fake_sign_type IS NOT NULL AND fake_sign_type != ''
+        GROUP BY fake_sign_type ORDER BY count DESC
+    </select>
+
+    <delete id="deleteByMonth">
+        DELETE FROM t_kpi_sign_record WHERE month = #{month}
+    </delete>
+
+</mapper>
