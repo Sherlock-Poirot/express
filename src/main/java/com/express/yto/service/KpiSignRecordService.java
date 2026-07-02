@@ -18,11 +18,7 @@ public interface KpiSignRecordService {
 
     KpiMonthlySummaryDTO getMonthlySummary(String month);
 
-    List<KpiCourierRankDTO> getCourierRank(String month);
+    List<KpiCourierRankDTO> getCourierRank(String startDate, String endDate);
 
-    List<KpiFakeSignTypeDTO> getFakeSignTypeStat(String month);
-
-    void deleteById(Long id);
-
-    void deleteByMonth(String month);
+    List<KpiFakeSignTypeDTO> getFakeSignTypeStat(String startDate, String endDate);
 }

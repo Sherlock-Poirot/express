@@ -173,23 +173,13 @@ public class KpiSignRecordServiceImpl implements KpiSignRecordService {
     }
 
     @Override
-    public List<KpiCourierRankDTO> getCourierRank(String month) {
-        return kpiSignRecordMapper.selectCourierRank(month);
+    public List<KpiCourierRankDTO> getCourierRank(String startDate, String endDate) {
+        return kpiSignRecordMapper.selectCourierRank(startDate, endDate);
     }
 
     @Override
-    public List<KpiFakeSignTypeDTO> getFakeSignTypeStat(String month) {
-        return kpiSignRecordMapper.selectFakeSignTypeStat(month);
+    public List<KpiFakeSignTypeDTO> getFakeSignTypeStat(String startDate, String endDate) {
+        return kpiSignRecordMapper.selectFakeSignTypeStat(startDate, endDate);
     }
 
-    @Override
-    public void deleteById(Long id) {
-        kpiSignRecordMapper.deleteById(id);
-    }
-
-    @Override
-    @Transactional
-    public void deleteByMonth(String month) {
-        kpiSignRecordMapper.deleteByMonth(month);
-    }
 }

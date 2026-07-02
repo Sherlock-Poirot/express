@@ -812,6 +812,11 @@ public class DailyBillServiceImpl extends ServiceImpl<DailyBillMapper, DailyBill
         } else {
             summary.setAvgDayOnDayRatio(null);
         }
+        
+        // 查询物料费用
+        BigDecimal materialFee = BigDecimal.valueOf(summary.getTotalCount()).multiply(new BigDecimal("1.56"));
+        summary.setMaterialFee(materialFee != null ? materialFee : BigDecimal.ZERO);
+        summary.setTotalProfit(totalProfit.subtract(materialFee));
 
         log.info("客户统计汇总查询完成");
         return summary;

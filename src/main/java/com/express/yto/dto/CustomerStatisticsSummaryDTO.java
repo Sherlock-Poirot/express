@@ -42,4 +42,7 @@ public class CustomerStatisticsSummaryDTO {
     
     /** 固定政策收费（政策类型为2-固定收费的金额总和） */
     private BigDecimal fixedPolicyFee;
+    
+    /** 物料费用 */
+    private BigDecimal materialFee;
 }

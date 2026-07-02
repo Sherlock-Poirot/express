@@ -48,27 +48,16 @@ public class KpiSignRecordController {
         return RestResult.ok(summary);
     }
 
-    @GetMapping("/courier-rank/{month}")
-    public RestResult<List<KpiCourierRankDTO>> getCourierRank(@PathVariable String month) {
-        List<KpiCourierRankDTO> rank = kpiSignRecordService.getCourierRank(month);
+    @GetMapping("/courier-rank")
+    public RestResult<List<KpiCourierRankDTO>> getCourierRank(@RequestParam String startDate, @RequestParam String endDate) {
+        List<KpiCourierRankDTO> rank = kpiSignRecordService.getCourierRank(startDate, endDate);
         return RestResult.ok(rank);
     }
 
-    @GetMapping("/fake-sign-type/{month}")
-    public RestResult<List<KpiFakeSignTypeDTO>> getFakeSignTypeStat(@PathVariable String month) {
-        List<KpiFakeSignTypeDTO> stat = kpiSignRecordService.getFakeSignTypeStat(month);
+    @GetMapping("/fake-sign-type")
+    public RestResult<List<KpiFakeSignTypeDTO>> getFakeSignTypeStat(@RequestParam String startDate, @RequestParam String endDate) {
+        List<KpiFakeSignTypeDTO> stat = kpiSignRecordService.getFakeSignTypeStat(startDate, endDate);
         return RestResult.ok(stat);
     }
 
-    @DeleteMapping("/{id}")
-    public RestResult<String> deleteById(@PathVariable Long id) {
-        kpiSignRecordService.deleteById(id);
-        return RestResult.ok("删除成功");
-    }
-
-    @DeleteMapping("/month/{month}")
-    public RestResult<String> deleteByMonth(@PathVariable String month) {
-        kpiSignRecordService.deleteByMonth(month);
-        return RestResult.ok("删除成功");
-    }
 }

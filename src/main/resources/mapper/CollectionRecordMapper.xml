@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.CollectionRecordMapper">
+
+    <select id="selectRecordPage" resultType="com.express.yto.model.CollectionRecord">
+        SELECT * FROM t_collection_record WHERE 1=1
+        <if test="startDate != null and startDate != ''">
+            AND DATE(expected_collection_time) &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(expected_collection_time) &lt;= #{endDate}
+        </if>
+        <if test="salesmanName != null and salesmanName != ''">
+            AND salesman_name LIKE CONCAT('%', #{salesmanName}, '%')
+        </if>
+        <if test="isDelay != null">
+            AND is_delay = #{isDelay}
+        </if>
+        <if test="waybillNo != null and waybillNo != ''">
+            AND waybill_no LIKE CONCAT('%', #{waybillNo}, '%')
+        </if>
+        ORDER BY expected_collection_time DESC
+    </select>
+
+    <select id="selectSalesmanRank" resultType="com.express.yto.dto.SalesmanRankDTO">
+        SELECT salesman_name AS salesmanName,
+               COUNT(*) AS totalCount,
+               SUM(CASE WHEN is_delay = 1 THEN 1 ELSE 0 END) AS delayCount,
+               ROUND(IFNULL(SUM(CASE WHEN is_delay = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS delayRate,
+               ROUND(AVG(collection_delay_minutes), 2) AS avgDelayMinutes
+        FROM t_collection_record
+        WHERE DATE(expected_collection_time) &gt;= #{startDate} AND DATE(expected_collection_time) &lt;= #{endDate}
+        AND salesman_name IS NOT NULL AND salesman_name != ''
+        GROUP BY salesman_name ORDER BY totalCount DESC
+    </select>
+
+    <delete id="deleteByMonth">
+        DELETE FROM t_collection_record WHERE month = #{month}
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO t_collection_record (
+            waybill_no, expected_collection_time, actual_collection_time,
+            order_no, salesman_name, collection_delay_minutes, is_delay, month
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.waybillNo}, #{item.expectedCollectionTime}, #{item.actualCollectionTime},
+                #{item.orderNo}, #{item.salesmanName}, #{item.collectionDelayMinutes}, #{item.isDelay}, #{item.month}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

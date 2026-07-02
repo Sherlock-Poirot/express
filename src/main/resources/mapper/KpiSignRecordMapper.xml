@@ -45,15 +45,15 @@
                ROUND(IFNULL(SUM(CASE WHEN pre_sign_call = 1 THEN 1 ELSE 0 END) / COUNT(*), 0) * 100, 2) AS preSignCallRate,
                ROUND(AVG(efficiency_hours), 2) AS avgEfficiencyHours
         FROM t_kpi_sign_record
-        WHERE month = #{month} AND courier_name IS NOT NULL AND courier_name != ''
+        WHERE data_date &gt;= #{startDate} AND data_date &lt;= #{endDate} AND courier_name IS NOT NULL AND courier_name != ''
         GROUP BY courier_code, courier_name ORDER BY totalCount DESC
     </select>
 
     <select id="selectFakeSignTypeStat" resultType="com.express.yto.dto.KpiFakeSignTypeDTO">
         SELECT fake_sign_type AS fakeSignType, COUNT(*) AS count,
-               ROUND(COUNT(*) / (SELECT COUNT(*) FROM t_kpi_sign_record WHERE month = #{month}) * 100, 2) AS percentage
+               ROUND(COUNT(*) / (SELECT COUNT(*) FROM t_kpi_sign_record WHERE data_date &gt;= #{startDate} AND data_date &lt;= #{endDate}) * 100, 2) AS percentage
         FROM t_kpi_sign_record
-        WHERE month = #{month} AND fake_sign_type IS NOT NULL AND fake_sign_type != ''
+        WHERE data_date &gt;= #{startDate} AND data_date &lt;= #{endDate} AND fake_sign_type IS NOT NULL AND fake_sign_type != ''
         GROUP BY fake_sign_type ORDER BY count DESC
     </select>
 

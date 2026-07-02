@@ -25,9 +25,9 @@ public interface KpiSignRecordMapper extends BaseMapper<KpiSignRecord> {
 
     KpiMonthlySummaryDTO selectMonthlySummary(@Param("month") String month);
 
-    List<KpiCourierRankDTO> selectCourierRank(@Param("month") String month);
+    List<KpiCourierRankDTO> selectCourierRank(@Param("startDate") String startDate, @Param("endDate") String endDate);
 
-    List<KpiFakeSignTypeDTO> selectFakeSignTypeStat(@Param("month") String month);
+    List<KpiFakeSignTypeDTO> selectFakeSignTypeStat(@Param("startDate") String startDate, @Param("endDate") String endDate);
 
     void deleteByMonth(@Param("month") String month);
 }
