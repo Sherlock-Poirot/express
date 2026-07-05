@@ -38,7 +38,8 @@
     FROM
       t_waybill_detail w
     WHERE
-      (w.emp_type IS NULL OR w.emp_type = '')
+      w.bill_month = #{billMonth}
+      AND (w.emp_type IS NULL OR w.emp_type = '')
       AND w.send_customer_name IS NOT NULL
     GROUP BY
       w.send_customer_name, w.send_customer
@@ -57,7 +58,8 @@
     INNER JOIN
       t_waybill_detail w ON c.real_name = w.salesman_name
     WHERE
-      w.emp_type IS NOT NULL
+      w.bill_month = #{billMonth}
+      AND w.emp_type IS NOT NULL
       AND w.emp_type != ''
       AND c.staff_type = 1
     GROUP BY
@@ -77,7 +79,8 @@
     INNER JOIN
       t_waybill_detail w ON c.real_name = w.salesman_name
     WHERE
-      w.emp_type = '散件'
+      w.bill_month = #{billMonth}
+      AND w.emp_type = '散件'
       AND c.staff_type = 0
     GROUP BY
       c.contract_name,w.emp_type
@@ -96,7 +99,8 @@
     INNER JOIN
       t_waybill_detail w ON c.shop_name = w.settle_name
     WHERE
-      w.emp_type IN ('淘宝', '限定') 
+      w.bill_month = #{billMonth}
+      AND w.emp_type IN ('淘宝', '限定') 
       AND c.platform = w.material_type
     GROUP BY
       c.emp_name, w.emp_type
@@ -115,7 +119,8 @@
     INNER JOIN
       t_waybill_detail t2 ON t1.shop_name = t2.settle_name
     WHERE
-      t2.emp_type = '特批'
+      t2.bill_month = #{billMonth}
+      AND t2.emp_type = '特批'
     GROUP BY
       t1.emp_name,t1.cust_name
   </select>

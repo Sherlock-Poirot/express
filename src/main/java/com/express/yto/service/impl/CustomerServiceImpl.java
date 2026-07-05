@@ -302,16 +302,38 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     @Transactional
     @Override
     public void updateCustomer(CustomerDetailDTO input) {
+        Customer oldCustomer = customerMapper.selectById(input.getId());
+        String oldCode = oldCustomer != null ? oldCustomer.getCode() : null;
+        String newCode = input.getCode();
+
         Customer customer = new Customer();
         BeanUtils.copyProperties(input, customer);
         customerMapper.updateById(customer);
-        String code = input.getCode();
+
+        if (StringUtils.isNotBlank(oldCode) && !oldCode.equals(newCode)) {
+            QueryWrapper<FixedFee> fixedQw = new QueryWrapper<>();
+            fixedQw.eq("code", oldCode);
+            fixedFeeMapper.update(FixedFee.builder().code(newCode).build(), fixedQw);
+
+            QueryWrapper<OverFee> overQw = new QueryWrapper<>();
+            overQw.eq("code", oldCode);
+            overFeeMapper.update(OverFee.builder().code(newCode).build(), overQw);
+
+            QueryWrapper<Prepayment> prepaymentQw = new QueryWrapper<>();
+            prepaymentQw.eq("code", oldCode);
+            prepaymentMapper.update(Prepayment.builder().code(newCode).build(), prepaymentQw);
+
+            QueryWrapper<ExtraFee> extraQw = new QueryWrapper<>();
+            extraQw.eq("code", oldCode);
+            extraFeeMapper.update(ExtraFee.builder().code(newCode).build(), extraQw);
+        }
+
         QueryWrapper<ExtraFee> qw = new QueryWrapper<>();
-        qw.eq("code", code);
+        qw.eq("code", newCode);
         extraFeeMapper.delete(qw);
         List<ExtraFee> list = new ArrayList<>();
         for (ExtraFeeDTO extra : input.getExtra()) {
-            list.add(ExtraFee.builder().code(code).areaName(extra.getAreaName()).fee(extra.getFee()).build());
+            list.add(ExtraFee.builder().code(newCode).areaName(extra.getAreaName()).fee(extra.getFee()).build());
         }
         extraFeeMapper.insert(list);
     }

@@ -11,15 +11,15 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface MonthlyBillMapper extends BaseMapper<MonthlyBill> {
 
-    List<MonthlyBillSummaryDTO> getDirectCustomerData();
+    List<MonthlyBillSummaryDTO> getDirectCustomerData(@Param("billMonth") String billMonth);
 
-    List<MonthlyBillSummaryDTO> getEmployeeData();
+    List<MonthlyBillSummaryDTO> getEmployeeData(@Param("billMonth") String billMonth);
 
-    List<MonthlyBillSummaryDTO> getContractLooseData();
+    List<MonthlyBillSummaryDTO> getContractLooseData(@Param("billMonth") String billMonth);
 
-    List<MonthlyBillSummaryDTO> getContractTaobaoLimitedData();
+    List<MonthlyBillSummaryDTO> getContractTaobaoLimitedData(@Param("billMonth") String billMonth);
 
-    List<MonthlyBillSummaryDTO> getContractSpecialData();
+    List<MonthlyBillSummaryDTO> getContractSpecialData(@Param("billMonth") String billMonth);
 
     void deleteByBillMonth(@Param("billMonth") String billMonth);
 

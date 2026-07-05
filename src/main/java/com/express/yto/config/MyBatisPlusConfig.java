@@ -25,7 +25,6 @@ public class MyBatisPlusConfig {
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource, MybatisPlusInterceptor mybatisPlusInterceptor) throws Exception {
         MybatisSqlSessionFactoryBean sqlSessionFactory = new MybatisSqlSessionFactoryBean();
         sqlSessionFactory.setDataSource(dataSource);
-        // 关键：设置XML文件扫描路径
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         sqlSessionFactory.setMapperLocations(resolver.getResources("classpath:mapper/*.xml"));
 
@@ -33,10 +32,9 @@ public class MyBatisPlusConfig {
         configuration.setJdbcTypeForNull(JdbcType.NULL);
         configuration.setMapUnderscoreToCamelCase(true);
         configuration.setCacheEnabled(false);
-        // 注册自定义的TypeHandler
         configuration.getTypeHandlerRegistry().register(LocalDateTypeHandler.class);
-        configuration.addInterceptor(mybatisPlusInterceptor);
         sqlSessionFactory.setConfiguration(configuration);
+        sqlSessionFactory.setPlugins(mybatisPlusInterceptor);
         return sqlSessionFactory.getObject();
     }
 

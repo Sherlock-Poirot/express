@@ -101,7 +101,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
         List<MonthlyBill> billList = new ArrayList<>();
 
-        List<MonthlyBillSummaryDTO> directCustomerList = monthlyBillMapper.getDirectCustomerData();
+        List<MonthlyBillSummaryDTO> directCustomerList = monthlyBillMapper.getDirectCustomerData(billMonth);
         for (MonthlyBillSummaryDTO dto : directCustomerList) {
             billList.add(MonthlyBill.builder()
                     .billMonth(billMonth)
@@ -114,7 +114,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     .build());
         }
 
-        List<MonthlyBillSummaryDTO> employeeList = monthlyBillMapper.getEmployeeData();
+        List<MonthlyBillSummaryDTO> employeeList = monthlyBillMapper.getEmployeeData(billMonth);
         for (MonthlyBillSummaryDTO dto : employeeList) {
             billList.add(MonthlyBill.builder()
                     .billMonth(billMonth)
@@ -127,7 +127,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     .build());
         }
 
-        List<MonthlyBillSummaryDTO> contractLooseList = monthlyBillMapper.getContractLooseData();
+        List<MonthlyBillSummaryDTO> contractLooseList = monthlyBillMapper.getContractLooseData(billMonth);
         for (MonthlyBillSummaryDTO dto : contractLooseList) {
             billList.add(MonthlyBill.builder()
                     .billMonth(billMonth)
@@ -140,7 +140,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     .build());
         }
 
-        List<MonthlyBillSummaryDTO> contractTaobaoLimitedList = monthlyBillMapper.getContractTaobaoLimitedData();
+        List<MonthlyBillSummaryDTO> contractTaobaoLimitedList = monthlyBillMapper.getContractTaobaoLimitedData(billMonth);
         for (MonthlyBillSummaryDTO dto : contractTaobaoLimitedList) {
             billList.add(MonthlyBill.builder()
                     .billMonth(billMonth)
@@ -153,7 +153,7 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     .build());
         }
 
-        List<MonthlyBillSummaryDTO> contractSpecialList = monthlyBillMapper.getContractSpecialData();
+        List<MonthlyBillSummaryDTO> contractSpecialList = monthlyBillMapper.getContractSpecialData(billMonth);
         for (MonthlyBillSummaryDTO dto : contractSpecialList) {
             billList.add(MonthlyBill.builder()
                     .billMonth(billMonth)
@@ -510,13 +510,24 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                     continue;
                 }
 
+                List<WaybillDetail> looseList = monthlyBillMapper.getContractLooseDetailList(billMonth, contractName);
+                List<WaybillDetail> taobaoList = monthlyBillMapper.getContractTaobaoDetailList(billMonth, contractName);
+                List<WaybillDetail> limitedList = monthlyBillMapper.getContractLimitedDetailList(billMonth, contractName);
+
+                boolean hasData = (looseList != null && !looseList.isEmpty()) 
+                        || (taobaoList != null && !taobaoList.isEmpty()) 
+                        || (limitedList != null && !limitedList.isEmpty());
+
+                if (!hasData) {
+                    continue;
+                }
+
                 String filePath = contractDetailDir + File.separator + contractName + monthDesc + ".xlsx";
                 
                 try (ExcelWriter excelWriter = EasyExcel.write(filePath, ContractShopExcelDTO.class)
                         .registerWriteHandler(ExcelUtil.getBillStyle())
                         .build()) {
                     
-                    List<WaybillDetail> looseList = monthlyBillMapper.getContractLooseDetailList(billMonth, contractName);
                     if (looseList != null && !looseList.isEmpty()) {
                         List<ContractShopExcelDTO> looseDTOList = looseList.stream()
                                 .map(this::convertToContractShopExcelDTOWithAdd3)
@@ -526,7 +537,6 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                         excelWriter.write(looseDTOList, looseSheet);
                     }
 
-                    List<WaybillDetail> taobaoList = monthlyBillMapper.getContractTaobaoDetailList(billMonth, contractName);
                     if (taobaoList != null && !taobaoList.isEmpty()) {
                         List<ContractShopExcelDTO> taobaoDTOList = taobaoList.stream()
                                 .map(this::convertToContractShopExcelDTOWithAdd3)
@@ -536,7 +546,6 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
                         excelWriter.write(taobaoDTOList, taobaoSheet);
                     }
 
-                    List<WaybillDetail> limitedList = monthlyBillMapper.getContractLimitedDetailList(billMonth, contractName);
                     if (limitedList != null && !limitedList.isEmpty()) {
                         List<ContractShopExcelDTO> limitedDTOList = limitedList.stream()
                                 .map(this::convertToContractShopExcelDTOWithAdd3)

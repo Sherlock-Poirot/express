@@ -3,6 +3,7 @@ package com.express.yto.service;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
+import com.alibaba.excel.metadata.data.ReadCellData;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.express.yto.dao.SysTaskMapper;
@@ -15,8 +16,13 @@ import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
 import com.express.yto.model.WaybillDetailOriginal;
 import java.io.ByteArrayInputStream;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
@@ -55,31 +61,62 @@ public class WaybillAsyncService {
         try {
             final int[] totalCount = {0};
 
-            EasyExcel.read(new ByteArrayInputStream(fileBytes), WaybillDetail.class, new AnalysisEventListener<WaybillDetail>() {
+            EasyExcel.read(new ByteArrayInputStream(fileBytes), new AnalysisEventListener<Map<Integer, String>>() {
                 private final List<WaybillDetail> cacheList = new ArrayList<>(BATCH_SIZE);
                 private final List<WaybillDetailOriginal> originalCacheList = new ArrayList<>(BATCH_SIZE);
+                private Map<String, Integer> headMapping = new HashMap<>();
 
                 @Override
-                public void invoke(WaybillDetail data, AnalysisContext context) {
-                    data.setMaterialType(data.getMaterialType().replaceAll("新电子面单",""));
-                    data.setMaterialType(data.getMaterialType().replaceAll("电子面单",""));
-                    cacheList.add(data);
+                public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
+                    for (Map.Entry<Integer, ReadCellData<?>> entry : headMap.entrySet()) {
+                        String value = entry.getValue().getStringValue().trim();
+                        headMapping.put(value, entry.getKey());
+                    }
+                }
+
+                @Override
+                public void invoke(Map<Integer, String> data, AnalysisContext context) {
+                    WaybillDetail detail = new WaybillDetail();
+                    detail.setWaybillNo(data.get(headMapping.get("运单号码")));
+                    detail.setScanTime(parseDate(data.get(headMapping.get("扫描时间"))));
+                    detail.setWeight(parseBigDecimal(data.get(headMapping.get("计费重量（kg）"))));
+                    detail.setProvince(data.get(headMapping.get("计费省份")));
+                    detail.setDestination(data.get(headMapping.get("计费目的地名称")));
+                    detail.setSalesmanName(data.get(headMapping.get("物料业务员名称")));
+                    detail.setSendCustomer(data.get(headMapping.get("物料发放客户")));
+                    detail.setSendCustomerName(data.get(headMapping.get("物料发放客户名称")));
+                    detail.setSettleCode(data.get(headMapping.get("物料结算编码")));
+                    detail.setSettleName(data.get(headMapping.get("物料结算名称")));
+                    String materialType = data.get(headMapping.get("物料类型"));
+                    if (materialType != null) {
+                        materialType = materialType.replaceAll("新电子面单", "").replaceAll("电子面单", "");
+                    }
+                    detail.setMaterialType(materialType);
+                    detail.setExtraFee(parseBigDecimal(data.get(headMapping.get("加收"))));
+                    detail.setExpressFee(parseBigDecimal(data.get(headMapping.get("快递费"))));
+
+                    if (totalCount[0] == 0) {
+                        log.info("第一行数据 - materialType: [{}], waybillNo: [{}]", 
+                                materialType, detail.getWaybillNo());
+                    }
+
+                    cacheList.add(detail);
 
                     WaybillDetailOriginal original = WaybillDetailOriginal.builder()
-                            .waybillNo(data.getWaybillNo())
-                            .scanTime(data.getScanTime())
-                            .weight(data.getWeight())
-                            .province(data.getProvince())
-                            .destination(data.getDestination())
-                            .salesmanName(data.getSalesmanName())
-                            .sendCustomer(data.getSendCustomer())
-                            .sendCustomerName(data.getSendCustomerName())
-                            .settleCode(data.getSettleCode())
-                            .settleName(data.getSettleName())
-                            .materialType(data.getMaterialType())
-                            .extraFee(data.getExtraFee())
-                            .expressFee(data.getExpressFee())
-                            .billMonth(data.getBillMonth())
+                            .waybillNo(detail.getWaybillNo())
+                            .scanTime(detail.getScanTime())
+                            .weight(detail.getWeight())
+                            .province(detail.getProvince())
+                            .destination(detail.getDestination())
+                            .salesmanName(detail.getSalesmanName())
+                            .sendCustomer(detail.getSendCustomer())
+                            .sendCustomerName(detail.getSendCustomerName())
+                            .settleCode(detail.getSettleCode())
+                            .settleName(detail.getSettleName())
+                            .materialType(detail.getMaterialType())
+                            .extraFee(detail.getExtraFee())
+                            .expressFee(detail.getExpressFee())
+                            .billMonth(detail.getBillMonth())
                             .build();
                     originalCacheList.add(original);
 
@@ -165,6 +202,28 @@ public class WaybillAsyncService {
             task.setStatus(ImportStatus.FAILED.getCode());
             task.setMessage("差异重量导入失败：" + e.getMessage());
             sysTaskMapper.updateById(task);
+        }
+    }
+
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateStr.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private BigDecimal parseBigDecimal(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (Exception e) {
+            return null;
         }
     }
 }

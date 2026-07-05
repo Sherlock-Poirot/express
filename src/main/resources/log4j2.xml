@@ -132,7 +132,7 @@
         </Root>
 
         <!-- MyBatis SQL日志配置 -->
-        <Logger name="com.express.yto.dao" level="DEBUG" additivity="false">
+        <Logger name="com.express.yto.dao" level="INFO" additivity="false">
             <AppenderRef ref="SqlLog"/>
             <AppenderRef ref="Console"/>
         </Logger>
