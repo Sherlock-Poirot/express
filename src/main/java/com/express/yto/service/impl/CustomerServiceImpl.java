@@ -223,12 +223,19 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         if (deletePriceJudge(fixedList, overList, prepaymentList, extraFeeList)) {
             throw new BusinessException("该时间段没有价格表，请检查时间区间的正确性");
         }
-        List<Long> fixedIds = fixedList.stream().map(FixedFee::getId).collect(Collectors.toList());
-        List<Long> overIds = overList.stream().map(OverFee::getId).collect(Collectors.toList());
-        List<Long> prepaymentIds = prepaymentList.stream().map(Prepayment::getId).collect(Collectors.toList());
-        fixedFeeMapper.deleteByIds(fixedIds);
-        overFeeMapper.deleteByIds(overIds);
-        prepaymentMapper.deleteByIds(prepaymentIds);
+        // 只有列表非空时才执行删除，避免生成 IN () 非法SQL
+        if (CollUtil.isNotEmpty(fixedList)) {
+            List<Long> fixedIds = fixedList.stream().map(FixedFee::getId).collect(Collectors.toList());
+            fixedFeeMapper.deleteByIds(fixedIds);
+        }
+        if (CollUtil.isNotEmpty(overList)) {
+            List<Long> overIds = overList.stream().map(OverFee::getId).collect(Collectors.toList());
+            overFeeMapper.deleteByIds(overIds);
+        }
+        if (CollUtil.isNotEmpty(prepaymentList)) {
+            List<Long> prepaymentIds = prepaymentList.stream().map(Prepayment::getId).collect(Collectors.toList());
+            prepaymentMapper.deleteByIds(prepaymentIds);
+        }
     }
 
     @Transactional
