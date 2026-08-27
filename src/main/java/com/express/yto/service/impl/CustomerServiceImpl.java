@@ -161,13 +161,14 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     public IPage<Customer> search(CustomerSearchInput input) {
         Page<Customer> page = new Page<>(input.getPageNo(), input.getPageSize());
         QueryWrapper<Customer> qw = new QueryWrapper<>();
-        qw.orderByDesc("id");
         if (StringUtils.isNotBlank(input.getName())) {
             qw.like("cust_name", input.getName());
         }
         if (StringUtils.isNotBlank(input.getCode())) {
             qw.eq("code", input.getCode());
         }
+        // 排序规则：1. start_time 非NULL排前面(IS NULL=0在前,=1在后) 2. start_time倒序(近的在前) 3. id倒序兜底
+        qw.last("ORDER BY start_time IS NULL, start_time DESC, id DESC");
 
         return customerMapper.selectPage(page, qw);
     }
@@ -248,6 +249,11 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         prepaymentMapper.updateEndTime(code, endTime);
         fixedFeeMapper.updateEndTime(code, endTime);
         overFeeMapper.updateEndTime(code, endTime);
+
+        // 更新客户表最近价格开始时间（冗余字段，用于列表展示）
+        QueryWrapper<Customer> custQw = new QueryWrapper<>();
+        custQw.eq("code", code);
+        customerMapper.update(Customer.builder().startTime(startTime).build(), custQw);
 
         // 客户预付款
         Prepayment prepayment = new Prepayment();

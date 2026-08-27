@@ -12,10 +12,12 @@
     <result column="four_rate" jdbcType="DECIMAL" property="fourRate"/>
     <result column="four_model" jdbcType="VARCHAR" property="fourModel"/>
     <result column="four_fee" jdbcType="DECIMAL" property="fourFee"/>
+    <result column="type" jdbcType="INTEGER" property="type"/>
+    <result column="start_time" jdbcType="DATE" property="startTime"/>
   </resultMap>
   <sql id="Base_Column_List">
     <!--@mbg.generated-->
-    id, cust_name, code, is_three, remark, four_rate, four_model, four_fee
+    id, cust_name, code, is_three, remark, four_rate, four_model, four_fee, type, start_time
   </sql>
   <select id="getCustomerNameAndCode" resultType="com.express.yto.dto.CustomerCodeAndNameDTO">
     SELECT

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -77,5 +78,11 @@ public class Customer {
      */
     @TableField(value = "type")
     private Integer type;
+
+    /**
+     * 最近价格开始时间
+     */
+    @TableField(value = "start_time")
+    private LocalDate startTime;
 
 }
