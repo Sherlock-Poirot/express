@@ -25,4 +25,11 @@ public interface WaybillDetailService extends IService<WaybillDetail> {
     String importWaybillDiff(MultipartFile file);
 
     ValidationResultDTO validateData(String billMonth);
+
+    /**
+     * 运单明细归档：将 t_waybill_detail 数据迁移到 t_waybill_detail_copy 后清空原表
+     * @param billMonth 账单月份（yyyy-MM），为 null 或空时归档全部
+     * @return 归档条数
+     */
+    int archive(String billMonth);
 }

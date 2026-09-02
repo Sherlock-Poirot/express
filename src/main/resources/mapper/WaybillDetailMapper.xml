@@ -244,4 +244,37 @@
     SELECT COUNT(*) FROM t_waybill_detail 
     WHERE DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
   </select>
+
+  <!-- 运单明细归档：全量拷贝到 copy 表（排除 id，让 copy 表自增生成新主键，避免重复归档时主键冲突） -->
+  <insert id="archiveAllToCopy">
+    INSERT INTO t_waybill_detail_copy (
+      waybill_no, scan_time, weight, province, destination,
+      salesman_name, send_customer, send_customer_name,
+      settle_code, settle_name, material_type, emp_type,
+      extra_fee, express_fee, bill_month, create_time, update_time
+    )
+    SELECT
+      waybill_no, scan_time, weight, province, destination,
+      salesman_name, send_customer, send_customer_name,
+      settle_code, settle_name, material_type, emp_type,
+      extra_fee, express_fee, bill_month, create_time, update_time
+    FROM t_waybill_detail
+  </insert>
+
+  <!-- 运单明细归档：按账单月拷贝到 copy 表（排除 id，避免主键冲突） -->
+  <insert id="archiveByBillMonthToCopy">
+    INSERT INTO t_waybill_detail_copy (
+      waybill_no, scan_time, weight, province, destination,
+      salesman_name, send_customer, send_customer_name,
+      settle_code, settle_name, material_type, emp_type,
+      extra_fee, express_fee, bill_month, create_time, update_time
+    )
+    SELECT
+      waybill_no, scan_time, weight, province, destination,
+      salesman_name, send_customer, send_customer_name,
+      settle_code, settle_name, material_type, emp_type,
+      extra_fee, express_fee, bill_month, create_time, update_time
+    FROM t_waybill_detail
+    WHERE bill_month = #{billMonth}
+  </insert>
 </mapper>

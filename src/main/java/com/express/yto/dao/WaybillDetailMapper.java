@@ -55,4 +55,14 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
     void updateEmpType(@Param("billMonth") String billMonth);
 
     void updateExpressFee(LocalDate date);
+
+    /**
+     * 将 t_waybill_detail 全部数据归档到 t_waybill_detail_copy
+     */
+    int archiveAllToCopy();
+
+    /**
+     * 将 t_waybill_detail 指定账单月数据归档到 t_waybill_detail_copy
+     */
+    int archiveByBillMonthToCopy(@Param("billMonth") String billMonth);
 }

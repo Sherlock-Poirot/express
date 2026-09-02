@@ -227,6 +227,36 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             return result;
         }
 
+        // 新增校验：同一个客户编码(code)下，emp_name 或 emp_type 是否存在2种以上不同值
+        // 有则直接抛业务异常，提示用户先检查承包区客户配置
+        QueryWrapper<ShopEmp> empCheckQw = new QueryWrapper<>();
+        empCheckQw.select("code", "cust_name", "emp_name", "emp_type");
+        List<ShopEmp> empCheckList = shopEmpMapper.selectList(empCheckQw);
+
+        // 按 客户编码(code) 分组
+        Map<String, List<ShopEmp>> empByCode = empCheckList.stream()
+                .filter(e -> e.getCode() != null)
+                .collect(Collectors.groupingBy(ShopEmp::getCode));
+
+        for (Map.Entry<String, List<ShopEmp>> entry : empByCode.entrySet()) {
+            String code = entry.getKey();
+            List<ShopEmp> emps = entry.getValue();
+            String custName = emps.get(0).getCustName();
+
+            Set<String> distinctEmpNames = emps.stream()
+                    .map(ShopEmp::getEmpName)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Set<String> distinctEmpTypes = emps.stream()
+                    .map(ShopEmp::getEmpType)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            if (distinctEmpNames.size() > 1 || distinctEmpTypes.size() > 1) {
+                throw new BusinessException("承包区客户" + custName + "[" + code + "]存在不同的客户类型请先检查");
+            }
+        }
+
         QueryWrapper<WaybillDetail> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("bill_month", billMonth);
         List<WaybillDetail> waybillList = waybillDetailMapper.selectList(queryWrapper);
@@ -493,6 +523,35 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         }).collect(Collectors.toList());
         List<ContractShopExcelDTO> dealList = handler.handle(list, "yto_576017");
         updateWayBillIdAndFee(dealList);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public int archive(String billMonth) {
+        int archivedCount;
+
+        // 步骤1：数据搬运（原表 → copy表）
+        if (billMonth == null || billMonth.trim().isEmpty()) {
+            log.info("开始全量归档运单明细...");
+            archivedCount = waybillDetailMapper.archiveAllToCopy();
+            log.info("全量归档完成，共 {} 条数据写入 copy 表", archivedCount);
+
+            // 步骤2：清空原表（全部）
+            long deleted = waybillDetailMapper.delete(null);
+            log.info("原表 t_waybill_detail 已清空，删除 {} 条", deleted);
+        } else {
+            log.info("开始按账单月 [{}] 归档运单明细...", billMonth);
+            archivedCount = waybillDetailMapper.archiveByBillMonthToCopy(billMonth);
+            log.info("账单月 [{}] 归档完成，共 {} 条数据写入 copy 表", billMonth, archivedCount);
+
+            // 步骤2：删除原表对应账单月数据
+            QueryWrapper<WaybillDetail> qw = new QueryWrapper<>();
+            qw.eq("bill_month", billMonth);
+            long deleted = waybillDetailMapper.delete(qw);
+            log.info("原表 t_waybill_detail 账单月 [{}] 已删除 {} 条", billMonth, deleted);
+        }
+
+        return archivedCount;
     }
 
 }

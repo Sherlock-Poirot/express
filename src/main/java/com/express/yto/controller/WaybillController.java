@@ -92,5 +92,16 @@ public class WaybillController {
         return RestResult.ok("操作成功");
     }
 
+    /**
+     * 归档运单明细（计算+人工核查完毕后执行）
+     * 将 t_waybill_detail 数据迁移至 t_waybill_detail_copy 后清空原表
+     * @param date 账单月份（格式：yyyy-MM），不传则归档全部数据
+     * @return 归档条数
+     */
+    @PostMapping("/archive")
+    public RestResult<Integer> archive(@RequestParam(value = "date", required = false) String date) {
+        int count = waybillDetailService.archive(date);
+        return RestResult.ok(count);
+    }
 
 }

@@ -33,7 +33,7 @@
         <!-- 1. 控制台输出 -->
         <!-- ================================================== -->
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="${CONSOLE_LOG_PATTERN}"/>
+            <PatternLayout pattern="${CONSOLE_LOG_PATTERN}" charset="UTF-8"/>
         </Console>
 
         <!-- ================================================== -->
@@ -42,7 +42,7 @@
         <RollingFile name="BusinessLog" 
                      fileName="${LOG_HOME}/${APP_NAME}.log" 
                      filePattern="${LOG_HOME}/${APP_NAME}-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <PatternLayout pattern="${FILE_LOG_PATTERN}" charset="UTF-8"/>
             <Policies>
                 <!-- 按天滚动 -->
                 <TimeBasedTriggeringPolicy interval="1"/>
@@ -64,7 +64,7 @@
         <RollingFile name="ErrorLog" 
                      fileName="${LOG_HOME}/${APP_NAME}-error.log" 
                      filePattern="${LOG_HOME}/${APP_NAME}-error-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <PatternLayout pattern="${FILE_LOG_PATTERN}" charset="UTF-8"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
@@ -87,7 +87,7 @@
         <RollingFile name="SqlLog" 
                      fileName="${LOG_HOME}/${APP_NAME}-sql.log" 
                      filePattern="${LOG_HOME}/${APP_NAME}-sql-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <PatternLayout pattern="${FILE_LOG_PATTERN}" charset="UTF-8"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
@@ -106,7 +106,7 @@
         <RollingFile name="WaybillLog" 
                      fileName="${LOG_HOME}/${APP_NAME}-waybill.log" 
                      filePattern="${LOG_HOME}/${APP_NAME}-waybill-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="${FILE_LOG_PATTERN}"/>
+            <PatternLayout pattern="${FILE_LOG_PATTERN}" charset="UTF-8"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
                 <SizeBasedTriggeringPolicy size="${LOG_FILE_SIZE}"/>
