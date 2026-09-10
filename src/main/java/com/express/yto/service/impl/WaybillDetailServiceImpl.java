@@ -4,6 +4,7 @@ import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.express.yto.dao.ContractStaffMapper;
 import com.express.yto.dao.CustomerMapper;
 import com.express.yto.dao.ExtraFeeMapper;
 import com.express.yto.dao.FixedFeeMapper;
@@ -21,6 +22,7 @@ import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.enums.ImportStatus;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.factory.FileHandlerFactory;
+import com.express.yto.model.ContractStaff;
 import com.express.yto.model.Customer;
 import com.express.yto.model.ExtraFee;
 import com.express.yto.model.FixedFee;
@@ -72,6 +74,9 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Autowired
     private ShopEmpMapper shopEmpMapper;
+
+    @Autowired
+    private ContractStaffMapper contractStaffMapper;
 
     @Autowired
     private CustomerMapper customerMapper;
@@ -227,100 +232,106 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             return result;
         }
 
-        // 新增校验：同一个客户编码(code)下，emp_name 或 emp_type 是否存在2种以上不同值
-        // 有则直接抛业务异常，提示用户先检查承包区客户配置
-        QueryWrapper<ShopEmp> empCheckQw = new QueryWrapper<>();
-        empCheckQw.select("code", "cust_name", "emp_name", "emp_type");
-        List<ShopEmp> empCheckList = shopEmpMapper.selectList(empCheckQw);
+        long startMs = System.currentTimeMillis();
 
-        // 按 客户编码(code) 分组
-        Map<String, List<ShopEmp>> empByCode = empCheckList.stream()
-                .filter(e -> e.getCode() != null)
-                .collect(Collectors.groupingBy(ShopEmp::getCode));
+        // 当月运单：只查校验需要的5列，不再整行18列全量传输（服务器走公网库，这是主要瓶颈）
+        QueryWrapper<WaybillDetail> waybillQw = new QueryWrapper<>();
+        waybillQw.select("send_customer", "send_customer_name", "settle_code", "emp_type", "salesman_name")
+                .eq("bill_month", billMonth);
+        List<WaybillDetail> waybillList = waybillDetailMapper.selectList(waybillQw);
+        log.info("{}月待校验运单{}条，查询耗时{}ms", billMonth, waybillList.size(),
+                System.currentTimeMillis() - startMs);
 
-        for (Map.Entry<String, List<ShopEmp>> entry : empByCode.entrySet()) {
-            String code = entry.getKey();
-            List<ShopEmp> emps = entry.getValue();
-            String custName = emps.get(0).getCustName();
-
-            Set<String> distinctEmpNames = emps.stream()
-                    .map(ShopEmp::getEmpName)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-            Set<String> distinctEmpTypes = emps.stream()
-                    .map(ShopEmp::getEmpType)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-
-            if (distinctEmpNames.size() > 1 || distinctEmpTypes.size() > 1) {
-                throw new BusinessException("承包区客户" + custName + "[" + code + "]存在不同的客户类型请先检查");
+        // 提取当月运单实际涉及的编码集合，后续所有配置表只按这些编码查，不再全表扫描
+        Set<String> monthCustomerCodes = new HashSet<>();
+        Set<String> monthSettleCodes = new HashSet<>();
+        Set<String> monthSalesmanNames = new HashSet<>();
+        for (WaybillDetail waybill : waybillList) {
+            if (waybill.getSendCustomer() != null && !waybill.getSendCustomer().trim().isEmpty()) {
+                monthCustomerCodes.add(waybill.getSendCustomer().trim());
+            }
+            if (waybill.getSettleCode() != null && !waybill.getSettleCode().trim().isEmpty()) {
+                monthSettleCodes.add(waybill.getSettleCode().trim());
+            }
+            boolean isEmp = waybill.getEmpType() != null && !waybill.getEmpType().trim().isEmpty();
+            if (isEmp && waybill.getSalesmanName() != null && !waybill.getSalesmanName().trim().isEmpty()) {
+                monthSalesmanNames.add(waybill.getSalesmanName().trim());
             }
         }
 
-        QueryWrapper<WaybillDetail> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("bill_month", billMonth);
-        List<WaybillDetail> waybillList = waybillDetailMapper.selectList(queryWrapper);
+        // 承包区客户配置一致性校验：同一code下 emp_name/emp_type 不能有2种以上取值，只查当月涉及的code
+        if (!monthCustomerCodes.isEmpty()) {
+            QueryWrapper<ShopEmp> empCheckQw = new QueryWrapper<>();
+            empCheckQw.select("code", "cust_name", "emp_name", "emp_type")
+                    .in("code", monthCustomerCodes);
+            List<ShopEmp> empCheckList = shopEmpMapper.selectList(empCheckQw);
 
-        // 查询t_shop_emp表中所有shop_id，用于校验settle_code是否存在
-        Set<String> shopIds = new HashSet<>();
-        QueryWrapper<ShopEmp> shopEmpQuery = new QueryWrapper<>();
-        shopEmpQuery.select("shop_id");
-        List<ShopEmp> shopEmps = shopEmpMapper.selectList(shopEmpQuery);
-        for (ShopEmp shopEmp : shopEmps) {
-            shopIds.add(shopEmp.getShopId());
+            Map<String, List<ShopEmp>> empByCode = empCheckList.stream()
+                    .filter(e -> e.getCode() != null)
+                    .collect(Collectors.groupingBy(ShopEmp::getCode));
+
+            for (Map.Entry<String, List<ShopEmp>> entry : empByCode.entrySet()) {
+                String code = entry.getKey();
+                List<ShopEmp> emps = entry.getValue();
+                String custName = emps.get(0).getCustName();
+
+                Set<String> distinctEmpNames = emps.stream()
+                        .map(ShopEmp::getEmpName)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+                Set<String> distinctEmpTypes = emps.stream()
+                        .map(ShopEmp::getEmpType)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+
+                if (distinctEmpNames.size() > 1 || distinctEmpTypes.size() > 1) {
+                    throw new BusinessException("承包区客户" + custName + "[" + code + "]存在不同的客户类型请先检查");
+                }
+            }
         }
 
-        // 查询t_customer表中所有code，用于校验send_customer是否存在
-        Set<String> customerCodes = new HashSet<>();
-        QueryWrapper<Customer> customerQuery = new QueryWrapper<>();
-        customerQuery.select("code");
-        List<Customer> customers = customerMapper.selectList(customerQuery);
-        for (Customer customer : customers) {
-            customerCodes.add(customer.getCode());
-        }
+        // 以下存在性校验全部按"当月涉及的编码"做IN查询，返回的即"存在"的集合
+        Set<String> shopIds = queryExistingCodes(monthSettleCodes,
+                codes -> shopEmpMapper.selectList(new QueryWrapper<ShopEmp>().select("shop_id")
+                        .in("shop_id", codes)).stream().map(ShopEmp::getShopId).collect(Collectors.toSet()));
 
-        // 查询t_extra_fee表中所有code，用于校验是否有额外费用配置
-        Set<String> extraFeeCodes = new HashSet<>();
-        QueryWrapper<ExtraFee> extraFeeQuery = new QueryWrapper<>();
-        extraFeeQuery.select("code");
-        List<ExtraFee> extraFees = extraFeeMapper.selectList(extraFeeQuery);
-        for (ExtraFee extraFee : extraFees) {
-            extraFeeCodes.add(extraFee.getCode());
-        }
+        Set<String> customerCodes = queryExistingCodes(monthCustomerCodes,
+                codes -> customerMapper.selectList(new QueryWrapper<Customer>().select("code")
+                        .in("code", codes)).stream().map(c -> c.getCode() == null ? null : c.getCode().trim())
+                        .collect(Collectors.toSet()));
 
-        // 查询t_fixed_fee表中所有code，用于校验是否有固定费用配置
-        Set<String> fixedFeeCodes = new HashSet<>();
-        QueryWrapper<FixedFee> fixedFeeQuery = new QueryWrapper<>();
-        fixedFeeQuery.select("code");
-        List<FixedFee> fixedFees = fixedFeeMapper.selectList(fixedFeeQuery);
-        for (FixedFee fixedFee : fixedFees) {
-            fixedFeeCodes.add(fixedFee.getCode());
-        }
+        Set<String> extraFeeCodes = queryExistingCodes(monthCustomerCodes,
+                codes -> extraFeeMapper.selectList(new QueryWrapper<ExtraFee>().select("code")
+                        .in("code", codes)).stream().map(ExtraFee::getCode).collect(Collectors.toSet()));
 
-        // 查询t_over_fee表中所有code，用于校验是否有续重费用配置
-        Set<String> overFeeCodes = new HashSet<>();
-        QueryWrapper<OverFee> overFeeQuery = new QueryWrapper<>();
-        overFeeQuery.select("code");
-        List<OverFee> overFees = overFeeMapper.selectList(overFeeQuery);
-        for (OverFee overFee : overFees) {
-            overFeeCodes.add(overFee.getCode());
-        }
+        Set<String> fixedFeeCodes = queryExistingCodes(monthCustomerCodes,
+                codes -> fixedFeeMapper.selectList(new QueryWrapper<FixedFee>().select("code")
+                        .in("code", codes)).stream().map(FixedFee::getCode).collect(Collectors.toSet()));
 
-        // 查询t_prepayment表中所有code，用于校验是否有预付款配置
-        Set<String> prepaymentCodes = new HashSet<>();
-        QueryWrapper<Prepayment> prepaymentQuery = new QueryWrapper<>();
-        prepaymentQuery.select("code");
-        List<Prepayment> prepayments = prepaymentMapper.selectList(prepaymentQuery);
-        for (Prepayment prepayment : prepayments) {
-            prepaymentCodes.add(prepayment.getCode());
-        }
+        Set<String> overFeeCodes = queryExistingCodes(monthCustomerCodes,
+                codes -> overFeeMapper.selectList(new QueryWrapper<OverFee>().select("code")
+                        .in("code", codes)).stream().map(OverFee::getCode).collect(Collectors.toSet()));
 
-        // 存储校验错误信息，key为客户编码_客户名称，value为错误描述
-        Map<String, String> checkedErrors = new HashMap<>();
+        Set<String> prepaymentCodes = queryExistingCodes(monthCustomerCodes,
+                codes -> prepaymentMapper.selectList(new QueryWrapper<Prepayment>().select("code")
+                        .in("code", codes)).stream().map(Prepayment::getCode).collect(Collectors.toSet()));
+
+        Set<String> contractStaffNames = queryExistingCodes(monthSalesmanNames,
+                codes -> contractStaffMapper.selectList(new QueryWrapper<ContractStaff>().select("real_name")
+                                .in("real_name", codes)).stream()
+                        .map(ContractStaff::getRealName)
+                        .filter(n -> n != null && !n.trim().isEmpty())
+                        .map(String::trim)
+                        .collect(Collectors.toSet()));
+
+        log.info("{}月配置表校验数据加载完成，耗时{}ms", billMonth, System.currentTimeMillis() - startMs);
+
+        // 存储校验错误信息：key=客户编码_客户名称，value[0]=编码 [1]=名称 [2]=错误描述（不再用split拆key）
+        Map<String, String[]> checkedErrors = new HashMap<>();
 
         for (WaybillDetail waybill : waybillList) {
             String sendCustomer = waybill.getSendCustomer();
-            String sendCustomerName = waybill.getSendCustomerName();
+            String sendCustomerName = waybill.getSendCustomerName() == null ? "" : waybill.getSendCustomerName();
             String settleCode = waybill.getSettleCode();
             String empType = waybill.getEmpType();
 
@@ -328,32 +339,33 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             if (sendCustomer == null || sendCustomer.trim().isEmpty()) {
                 continue;
             }
+            sendCustomer = sendCustomer.trim();
 
             // 组合错误key：客户编码_客户名称，用于去重
             String errorKey = sendCustomer + "_" + sendCustomerName;
 
-            // 校验规则1：settle_code 在 t_shop_emp 的 shop_id 是否存在
-            if (settleCode != null && !settleCode.trim().isEmpty() && !shopIds.contains(settleCode)) {
-                String errorMsg = "settle_code(" + settleCode + ")在t_shop_emp表中不存在";
-                String existingError = checkedErrors.get(errorKey);
-                // 避免重复添加相同的错误信息
-                if (existingError == null || !existingError.contains(errorMsg)) {
-                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
-                }
+            // 校验规则1：settle_code 在 t_shop_emp 的 shop_id 是否存在（前后都trim，避免空格误报）
+            if (settleCode != null && !settleCode.trim().isEmpty() && !shopIds.contains(settleCode.trim())) {
+                String errorMsg = "settle_code(" + settleCode.trim() + ")在t_shop_emp表中不存在";
+                appendError(checkedErrors, errorKey, sendCustomer, sendCustomerName, errorMsg);
             }
 
             // 如果 emp_type 有值，则跳过规则2和规则3（承包区数据不需要这些校验）
             if (empType != null && !empType.trim().isEmpty()) {
+                // 校验规则4：承包区数据(emp_type非空)的 salesman_name 在 t_contract_staff 表中是否存在
+                String salesmanName = waybill.getSalesmanName();
+                if (salesmanName != null && !salesmanName.trim().isEmpty()
+                        && !contractStaffNames.contains(salesmanName.trim())) {
+                    String errorMsg = "salesman_name(" + salesmanName.trim() + ")在t_contract_staff表中不存在";
+                    appendError(checkedErrors, errorKey, sendCustomer, sendCustomerName, errorMsg);
+                }
                 continue;
             }
 
             // 校验规则2：send_customer 在 t_customer 的 code 是否存在
             if (!customerCodes.contains(sendCustomer)) {
                 String errorMsg = "send_customer(" + sendCustomer + ")在t_customer表中不存在";
-                String existingError = checkedErrors.get(errorKey);
-                if (existingError == null || !existingError.contains(errorMsg)) {
-                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
-                }
+                appendError(checkedErrors, errorKey, sendCustomer, sendCustomerName, errorMsg);
             }
 
             // 校验规则3：send_customer 在 t_extra_fee, t_fixed_fee, t_over_fee, t_prepayment 是否有数据
@@ -364,20 +376,15 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
             // 四个表中都没有数据才报错
             if (!hasExtraFee && !hasFixedFee && !hasOverFee && !hasPrepayment) {
-                String errorMsg = "send_customer(" + sendCustomer + ")在t_extra_fee/t_fixed_fee/t_over_fee/t_prepayment表中均无数据";
-                String existingError = checkedErrors.get(errorKey);
-                if (existingError == null || !existingError.contains(errorMsg)) {
-                    checkedErrors.put(errorKey, existingError != null ? existingError + "; " + errorMsg : errorMsg);
-                }
+                String errorMsg = "send_customer(" + sendCustomer
+                        + ")在t_extra_fee/t_fixed_fee/t_over_fee/t_prepayment表中均无数据";
+                appendError(checkedErrors, errorKey, sendCustomer, sendCustomerName, errorMsg);
             }
         }
 
-        // 将错误信息转换为ValidationErrorDTO列表
-        for (Map.Entry<String, String> entry : checkedErrors.entrySet()) {
-            String[] keyParts = entry.getKey().split("_", 2);
-            String customerCode = keyParts[0];
-            String customerName = keyParts.length > 1 ? keyParts[1] : "";
-            result.addError(customerName, customerCode, entry.getValue());
+        // 将错误信息转换为ValidationErrorDTO列表（直接取结构化的编码/名称，不再split）
+        for (String[] errorInfo : checkedErrors.values()) {
+            result.addError(errorInfo[1], errorInfo[0], errorInfo[2]);
         }
 
         // 如果有错误，标记校验不通过
@@ -387,6 +394,37 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         }
 
         return result;
+    }
+
+    /**
+     * 按给定编码集合做存在性查询：集合为空则不查库直接返回空集，避免IN()无效SQL和无意义的全表查询
+     *
+     * @param sourceCodes 当月数据实际涉及的编码
+     * @param query       针对这批编码的查询动作，返回数据库中存在的编码集合
+     */
+    private Set<String> queryExistingCodes(Set<String> sourceCodes,
+                                           java.util.function.Function<Set<String>, Set<String>> query) {
+        if (sourceCodes == null || sourceCodes.isEmpty()) {
+            return new HashSet<>();
+        }
+        Set<String> result = query.apply(sourceCodes);
+        return result == null ? new HashSet<>() : result;
+    }
+
+    /**
+     * 按客户聚合错误信息，相同错误不重复追加；value结构为[客户编码, 客户名称, 错误描述]
+     */
+    private void appendError(Map<String, String[]> checkedErrors, String errorKey,
+                             String customerCode, String customerName, String errorMsg) {
+        checkedErrors.compute(errorKey, (k, v) -> {
+            if (v == null) {
+                return new String[]{customerCode, customerName, errorMsg};
+            }
+            if (!v[2].contains(errorMsg)) {
+                v[2] = v[2] + "; " + errorMsg;
+            }
+            return v;
+        });
     }
 
     @Override
