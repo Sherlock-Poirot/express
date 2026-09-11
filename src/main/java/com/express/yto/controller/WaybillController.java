@@ -1,14 +1,15 @@
 package com.express.yto.controller;
 
+import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.model.SysTask;
 import com.express.yto.service.WaybillDetailService;
 
-import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -102,6 +103,17 @@ public class WaybillController {
     public RestResult<Integer> archive(@RequestParam(value = "date", required = false) String date) {
         int count = waybillDetailService.archive(date);
         return RestResult.ok(count);
+    }
+
+    /**
+     * 单条运单费用试算
+     * 根据传入的运单信息（客户名称、重量、省份、扫描时间等）计算快递费
+     * @param dto 运单信息
+     * @return 计算后的运单信息（expense 字段为计算出的费用）
+     */
+    @PostMapping("/calculateSingle")
+    public RestResult<ContractShopExcelDTO> calculateSingle(@RequestBody ContractShopExcelDTO dto) {
+        return RestResult.ok(waybillDetailService.calculateSingleBill(dto));
     }
 
 }

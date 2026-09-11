@@ -62,6 +62,18 @@ public class ContractShopExcelDTO {
     @ExcelProperty("快递费")
     private BigDecimal expense;
 
+    /**
+     * 命中的预付款金额（单票试算返回，不参与Excel导入导出）
+     */
+    @ExcelIgnore
+    private BigDecimal preFee;
+
+    /**
+     * 实际费用 = 预付款 + 快递费（单票试算返回，不参与Excel导入导出）
+     */
+    @ExcelIgnore
+    private BigDecimal realFee;
+
     @ExcelIgnore
     private Boolean overFlag = false;
 

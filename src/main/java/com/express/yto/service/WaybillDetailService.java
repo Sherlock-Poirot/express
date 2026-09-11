@@ -1,6 +1,7 @@
 package com.express.yto.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
@@ -32,4 +33,11 @@ public interface WaybillDetailService extends IService<WaybillDetail> {
      * @return 归档条数
      */
     int archive(String billMonth);
+
+    /**
+     * 单条运单费用试算：按客户名称路由到对应的 ExcelFileHandler 计算费用
+     * @param dto 运单信息（需包含客户名称、重量、省份、扫描时间等）
+     * @return 计算后的运单信息（expense 字段已填充费用）
+     */
+    ContractShopExcelDTO calculateSingleBill(com.express.yto.dto.ContractShopExcelDTO dto);
 }

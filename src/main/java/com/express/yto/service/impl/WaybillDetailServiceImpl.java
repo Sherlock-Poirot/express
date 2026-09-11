@@ -35,9 +35,12 @@ import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
 import com.express.yto.service.WaybillAsyncService;
 import com.express.yto.service.WaybillDetailService;
+import com.express.yto.util.BillDealUtil;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -425,6 +428,40 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             }
             return v;
         });
+    }
+
+    @Override
+    public ContractShopExcelDTO calculateSingleBill(ContractShopExcelDTO dto) {
+        if (dto == null) {
+            throw new BusinessException("运单信息不能为空");
+        }
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new BusinessException("客户名称不能为空");
+        }
+        // 按客户名称路由到对应的费用处理器（特殊客户走各自实现，其余走NormalExcelFileHandler兜底）
+        ExcelFileHandler handler = factory.getCustomerHandler(dto.getName().trim());
+        List<ContractShopExcelDTO> resultList = handler.handle(
+                new ArrayList<>(Collections.singletonList(dto)), "yto_576017");
+        if (resultList == null || resultList.isEmpty()) {
+            throw new BusinessException("费用计算失败，未返回结果");
+        }
+        ContractShopExcelDTO result = resultList.get(0);
+
+        // 根据客户code + 扫描日期匹配对应时间段的预付款，口径与主计算一致：[start_time, end_time)，无命中按0
+        BigDecimal preFee = BigDecimal.ZERO;
+        if (result.getCode() != null && !result.getCode().trim().isEmpty() && result.getScanDate() != null) {
+            List<Prepayment> prepaymentList = prepaymentMapper.selectList(
+                    new QueryWrapper<Prepayment>().eq("code", result.getCode().trim()));
+            preFee = prepaymentList.stream()
+                    .filter(p -> BillDealUtil.isDateInRange(result.getScanDate(), p.getStartTime(), p.getEndTime()))
+                    .findFirst()
+                    .map(Prepayment::getPreFee)
+                    .orElse(BigDecimal.ZERO);
+        }
+        result.setPreFee(preFee);
+        // 实际费用 = 预付款 + 快递费（expense在计算时已扣减预付款，加回后得到抵扣前费用）
+        result.setRealFee((result.getExpense() == null ? BigDecimal.ZERO : result.getExpense()).add(preFee));
+        return result;
     }
 
     @Override
