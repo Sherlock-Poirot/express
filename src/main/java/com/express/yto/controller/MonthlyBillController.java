@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.RestResult;
 import com.express.yto.model.MonthlyBill;
+import com.express.yto.service.MonthlyBillExportAsyncService;
 import com.express.yto.service.MonthlyBillService;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 
@@ -31,6 +32,9 @@ public class MonthlyBillController {
 
     @Autowired
     private MonthlyBillService monthlyBillService;
+
+    @Autowired
+    private MonthlyBillExportAsyncService monthlyBillExportAsyncService;
 
     @PostMapping("/search")
     @SaCheckPermission("settlement:bill")
@@ -123,5 +127,20 @@ public class MonthlyBillController {
                 log.error("设置错误响应失败", ioException);
             }
         }
+    }
+
+    /**
+     * 异步导出所有明细（推荐，数据量大不再同步等HTTP响应）
+     * 立即创建导出记录并后台生成zip，前端在文件下载页（ExportFileController）获取状态和下载链接
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @return 导出记录ID
+     */
+    @PostMapping("/exportDetail/async")
+    @SaCheckPermission("settlement:bill")
+    public RestResult<Long> exportDetailAsync(@RequestParam("billMonth") String billMonth) {
+        Long recordId = monthlyBillService.createExportTask(billMonth);
+        monthlyBillExportAsyncService.doExportDetailAsync(recordId);
+        log.info("异步导出明细任务已提交: billMonth={}, recordId={}", billMonth, recordId);
+        return RestResult.ok(recordId);
     }
 }

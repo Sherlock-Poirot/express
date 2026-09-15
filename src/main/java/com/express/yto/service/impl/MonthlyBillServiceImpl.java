@@ -8,12 +8,15 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.ContractStaffMapper;
+import com.express.yto.dao.ExportFileMapper;
 import com.express.yto.dao.MonthlyBillMapper;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.MonthlyBillExportDTO;
 import com.express.yto.dto.MonthlyBillSearchInput;
 import com.express.yto.dto.MonthlyBillSummaryDTO;
+import com.express.yto.enums.ImportStatus;
 import com.express.yto.model.ContractStaff;
+import com.express.yto.model.ExportFile;
 import com.express.yto.model.MonthlyBill;
 import com.express.yto.model.WaybillDetail;
 import com.express.yto.service.MonthlyBillService;
@@ -30,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -45,6 +49,9 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
 
     @Autowired
     private MonthlyBillMapper monthlyBillMapper;
+
+    @Autowired
+    private ExportFileMapper exportFileMapper;
 
 
     @Autowired
@@ -645,5 +652,36 @@ public class MonthlyBillServiceImpl extends ServiceImpl<MonthlyBillMapper, Month
         } catch (Exception e) {
             return "";
         }
+    }
+
+    @Override
+    public Long createExportTask(String billMonth) {
+        if (StringUtils.isBlank(billMonth)) {
+            throw new IllegalArgumentException("账单月份不能为空");
+        }
+        ExportFile record = new ExportFile();
+        record.setTaskNo(cn.hutool.core.util.IdUtil.getSnowflakeNextIdStr());
+        record.setBillMonth(billMonth);
+        record.setFileName(billMonth + "_明细.zip");
+        // 磁盘文件名追加时间戳，同一月份重复导出互不覆盖
+        String saveDir = System.getProperty("user.dir") + File.separator + "export_files";
+        String diskFileName = billMonth + "_明细_" + System.currentTimeMillis() + ".zip";
+        record.setFilePath(saveDir + File.separator + diskFileName);
+        record.setStatus(ImportStatus.RUNNING.getCode());
+        record.setCreateTime(new Date());
+        record.setUpdateTime(new Date());
+        exportFileMapper.insert(record);
+        return record.getId();
+    }
+
+    @Override
+    public List<ExportFile> listExportTasks() {
+        return exportFileMapper.selectList(
+                new QueryWrapper<ExportFile>().orderByDesc("id").last("LIMIT 50"));
+    }
+
+    @Override
+    public ExportFile getExportFile(Long id) {
+        return exportFileMapper.selectById(id);
     }
 }
