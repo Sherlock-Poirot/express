@@ -20,6 +20,7 @@ import com.express.yto.dto.EmpBillInfoDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.dto.ValidationResultDTO;
 import com.express.yto.enums.ImportStatus;
+import com.express.yto.enums.WaybillFlowStepEnum;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.factory.FileHandlerFactory;
 import com.express.yto.model.ContractStaff;
@@ -31,10 +32,12 @@ import com.express.yto.model.Prepayment;
 import com.express.yto.model.ShopEmp;
 import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
+import com.express.yto.model.WaybillFlowFile;
 import com.express.yto.service.EmployeeService;
 import com.express.yto.service.ExcelFileHandler;
 import com.express.yto.service.WaybillAsyncService;
 import com.express.yto.service.WaybillDetailService;
+import com.express.yto.service.WaybillFlowService;
 import com.express.yto.util.BillDealUtil;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -54,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,6 +104,16 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     private WaybillAsyncService waybillAsyncService;
 
     @Autowired
+    private WaybillFlowService waybillFlowService;
+
+    /**
+     * 自身代理：异步任务中通过代理调用保证 @Transactional 生效（this 调用会绕过事务代理）
+     */
+    @Autowired
+    @Lazy
+    private WaybillDetailService self;
+
+    @Autowired
     private EmployeeService employeeService;
 
     @Autowired
@@ -109,12 +123,17 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     private ThreadPoolTaskExecutor asyncExecutor;
 
     @Override
-    public String importWaybill(MultipartFile file) {
+    public String importWaybill(MultipartFile file, String billMonth) {
+        // 工作流：校验IMPORT步骤可导入（人工确认后锁定），并创建导入文件记录
+        waybillFlowService.checkImportable(billMonth);
+
         String taskNo = IdUtil.getSnowflakeNextIdStr();
+        waybillFlowService.createImportFileRecord(billMonth, file.getOriginalFilename(), taskNo);
+
         SysTask task = new SysTask();
         task.setTaskNo(taskNo);
         task.setTaskType(Thread.currentThread().getStackTrace()[1].getMethodName());
-        task.setMessage("导入原始账单");
+        task.setMessage("导入原始账单[" + billMonth + "]");
         task.setStatus(ImportStatus.RUNNING.getCode());
         sysTaskMapper.insert(task);
 
@@ -124,6 +143,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             // 传 byte[]，不再传 MultipartFile
             waybillAsyncService.doImportAsync(fileBytes, taskNo);
         } catch (IOException e) {
+            waybillFlowService.finishImportFileRecord(taskNo, false, 0, "读取文件失败");
             throw new BusinessException("读取文件失败");
         }
 
@@ -138,8 +158,24 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     }
 
     @Override
-    @Transactional
     public void cleanData(String billMonth) {
+        // 工作流：校验前置条件（IMPORT已确认、IMPORT_DIFF完成或跳过）并置RUNNING
+        waybillFlowService.startStep(billMonth, WaybillFlowStepEnum.CLEAN.getCode());
+        // 异步执行，接口立即返回（解决原同步阻塞问题），完成后回调更新步骤状态
+        asyncExecutor.execute(() -> {
+            try {
+                self.executeClean(billMonth);
+                waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.CLEAN.getCode(), true, null);
+            } catch (Exception e) {
+                log.error("[{}]账单清洗失败", billMonth, e);
+                waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.CLEAN.getCode(), false, e.getMessage());
+            }
+        });
+    }
+
+    @Override
+    @Transactional
+    public void executeClean(String billMonth) {
         int count = waybillDetailMapper.countByBillMonth(billMonth);
         if (count == 0) {
             log.info("{} 月没有数据，无需清洗", billMonth);
@@ -180,6 +216,22 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Override
     public void calculateBill(String billMonth) {
+        // 工作流：校验前置条件（VALIDATE已人工确认）并置RUNNING
+        waybillFlowService.startStep(billMonth, WaybillFlowStepEnum.CALCULATE.getCode());
+        // 异步执行，接口立即返回（解决原同步阻塞问题），完成后回调更新步骤状态
+        asyncExecutor.execute(() -> {
+            try {
+                self.executeCalculate(billMonth);
+                waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.CALCULATE.getCode(), true, null);
+            } catch (Exception e) {
+                log.error("[{}]账单计算失败", billMonth, e);
+                waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.CALCULATE.getCode(), false, e.getMessage());
+            }
+        });
+    }
+
+    @Override
+    public void executeCalculate(String billMonth) {
         int count = waybillDetailMapper.countByBillMonth(billMonth);
         if (count == 0) {
             log.info("{} 月没有数据，无需计算", billMonth);
@@ -227,6 +279,20 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
 
     @Override
     public ValidationResultDTO validateData(String billMonth) {
+        // 工作流：校验前置条件（CLEAN已成功）并置RUNNING
+        waybillFlowService.startStep(billMonth, WaybillFlowStepEnum.VALIDATE.getCode());
+        try {
+            ValidationResultDTO result = doValidateData(billMonth);
+            // 校验执行完成置SUCCESS，等人工核查后调用确认接口置PASSED
+            waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.VALIDATE.getCode(), true, null);
+            return result;
+        } catch (Exception e) {
+            waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.VALIDATE.getCode(), false, e.getMessage());
+            throw e;
+        }
+    }
+
+    private ValidationResultDTO doValidateData(String billMonth) {
         ValidationResultDTO result = ValidationResultDTO.builder().valid(true).build();
 
         int count = waybillDetailMapper.countByBillMonth(billMonth);
@@ -465,12 +531,15 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
     }
 
     @Override
-    public String importWaybillDiff(MultipartFile file) {
+    public String importWaybillDiff(MultipartFile file, String billMonth) {
+        // 工作流：校验前置条件（IMPORT已确认）并置RUNNING
+        waybillFlowService.startStep(billMonth, WaybillFlowStepEnum.IMPORT_DIFF.getCode());
+
         String taskNo = IdUtil.getSnowflakeNextIdStr();
         SysTask task = new SysTask();
         task.setTaskNo(taskNo);
         task.setTaskType(Thread.currentThread().getStackTrace()[1].getMethodName());
-        task.setMessage("导入差异重量");
+        task.setMessage("导入差异重量[" + billMonth + "]");
         task.setStatus(ImportStatus.RUNNING.getCode());
         sysTaskMapper.insert(task);
 
@@ -478,8 +547,9 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             // 🔥 关键：主线程先把文件读成字节数组（文件不会被删）
             byte[] fileBytes = file.getBytes();
             // 传 byte[]，不再传 MultipartFile
-            waybillAsyncService.doImportDiffAsync(fileBytes, taskNo);
+            waybillAsyncService.doImportDiffAsync(fileBytes, taskNo, billMonth);
         } catch (IOException e) {
+            waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.IMPORT_DIFF.getCode(), false, "读取文件失败");
             throw new BusinessException("读取文件失败");
         }
 

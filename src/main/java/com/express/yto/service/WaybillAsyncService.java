@@ -11,6 +11,8 @@ import com.express.yto.dao.WaybillDetailMapper;
 import com.express.yto.dao.WaybillDetailOriginalMapper;
 import com.express.yto.dto.IdAndWeightDTO;
 import com.express.yto.enums.ImportStatus;
+import com.express.yto.enums.WaybillFlowStatus;
+import com.express.yto.enums.WaybillFlowStepEnum;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.model.SysTask;
 import com.express.yto.model.WaybillDetail;
@@ -48,7 +50,10 @@ public class WaybillAsyncService {
     @Autowired
     private SysTaskMapper sysTaskMapper;
 
-    @Async
+    @Autowired
+    private WaybillFlowService waybillFlowService;
+
+    @Async("asyncExecutor")
     public void doImportAsync(byte[] fileBytes, String taskNo) {
         SysTask task = sysTaskMapper.selectOne(Wrappers.lambdaQuery(SysTask.class)
                 .eq(SysTask::getTaskNo, taskNo));
@@ -145,17 +150,21 @@ public class WaybillAsyncService {
             task.setStatus(ImportStatus.SUCCESS.getCode());
             task.setMessage("原始账单成功导入" + totalCount[0] + "条");
             sysTaskMapper.updateById(task);
+            // 工作流：更新导入文件记录为成功
+            waybillFlowService.finishImportFileRecord(taskNo, true, totalCount[0], null);
 
         } catch (Exception e) {
             log.error("Excel导入失败", e);
             task.setStatus(ImportStatus.FAILED.getCode());
             task.setMessage("原始账单导入失败：" + e.getMessage());
             sysTaskMapper.updateById(task);
+            // 工作流：更新导入文件记录为失败
+            waybillFlowService.finishImportFileRecord(taskNo, false, 0, e.getMessage());
         }
     }
 
-//    @Async
-    public void doImportDiffAsync(byte[] fileBytes, String taskNo) {
+    @Async("asyncExecutor")
+    public void doImportDiffAsync(byte[] fileBytes, String taskNo, String billMonth) {
         SysTask task = sysTaskMapper.selectOne(Wrappers.lambdaQuery(SysTask.class)
                 .eq(SysTask::getTaskNo, taskNo));
 
@@ -196,12 +205,16 @@ public class WaybillAsyncService {
             task.setStatus(ImportStatus.SUCCESS.getCode());
             task.setMessage("差异重量成功导入" + totalCount[0] + "条");
             sysTaskMapper.updateById(task);
+            // 工作流：导入重量差异步骤完成
+            waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.IMPORT_DIFF.getCode(), true, null);
 
         } catch (Exception e) {
             log.error("Excel导入失败", e);
             task.setStatus(ImportStatus.FAILED.getCode());
             task.setMessage("差异重量导入失败：" + e.getMessage());
             sysTaskMapper.updateById(task);
+            // 工作流：导入重量差异步骤失败
+            waybillFlowService.finishStep(billMonth, WaybillFlowStepEnum.IMPORT_DIFF.getCode(), false, e.getMessage());
         }
     }
 

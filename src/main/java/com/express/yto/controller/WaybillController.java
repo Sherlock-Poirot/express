@@ -3,17 +3,22 @@ package com.express.yto.controller;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.dto.ValidationResultDTO;
+import com.express.yto.dto.WaybillFlowBatchDTO;
 import com.express.yto.model.SysTask;
 import com.express.yto.service.WaybillDetailService;
+import com.express.yto.service.WaybillFlowService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * 运单明细控制器
@@ -28,24 +33,32 @@ public class WaybillController {
     @Autowired
     private WaybillDetailService waybillDetailService;
 
+    @Autowired
+    private WaybillFlowService waybillFlowService;
+
     /**
-     * 导入运单数据
+     * 导入运单数据（工作流IMPORT步骤）
+     * 支持分多次导入多个文件，全部导入完成后需调用确认接口
      * @param file Excel文件
+     * @param billMonth 账单月份（格式：yyyy-MM）
      * @return 任务编号
      */
     @PostMapping("/import")
-    public RestResult<String> importWaybill(@RequestParam("file") MultipartFile file) {
-        return RestResult.ok(waybillDetailService.importWaybill(file));
+    public RestResult<String> importWaybill(@RequestParam("file") MultipartFile file,
+                                            @RequestParam("billMonth") String billMonth) {
+        return RestResult.ok(waybillDetailService.importWaybill(file, billMonth));
     }
 
     /**
-     * 导入差异重量数据
+     * 导入差异重量数据（工作流IMPORT_DIFF步骤，可选步骤，无差异可跳过）
      * @param file Excel文件
+     * @param billMonth 账单月份（格式：yyyy-MM）
      * @return 任务编号
      */
     @PostMapping("/import/diff")
-    public RestResult<String> importWaybillDiff(@RequestParam("file") MultipartFile file) {
-        return RestResult.ok(waybillDetailService.importWaybillDiff(file));
+    public RestResult<String> importWaybillDiff(@RequestParam("file") MultipartFile file,
+                                                @RequestParam("billMonth") String billMonth) {
+        return RestResult.ok(waybillDetailService.importWaybillDiff(file, billMonth));
     }
 
     /**
@@ -59,38 +72,39 @@ public class WaybillController {
     }
 
     /**
-     * 清洗运单数据
-     * @param date 账单月份（格式：yyyy-MM）
-     * @return 操作结果
+     * 清洗运单数据（工作流CLEAN步骤，异步执行）
+     * 前置条件：IMPORT已人工确认且IMPORT_DIFF完成或跳过
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @return 操作结果（异步执行，步骤状态通过批次详情接口查询）
      */
     @PostMapping("/clean")
-    public RestResult<String> cleanData(@RequestParam(value = "date",required = false) String date){
-        // TODO 后期要改必须得是异步请求
-        waybillDetailService.cleanData(date);
-        return RestResult.ok("操作成功");
+    public RestResult<String> cleanData(@RequestParam("billMonth") String billMonth){
+        waybillDetailService.cleanData(billMonth);
+        return RestResult.ok("操作成功，正在异步执行");
     }
 
     /**
-     * 校验运单数据（计算前校验）
-     * @param date 账单月份（格式：yyyy-MM）
+     * 校验运单数据（工作流VALIDATE步骤，同步返回校验结果）
+     * 前置条件：CLEAN已成功；校验完成后需人工核查并调用确认接口
+     * @param billMonth 账单月份（格式：yyyy-MM）
      * @return 校验结果
      */
     @PostMapping("/validate")
-    public RestResult<ValidationResultDTO> validateData(@RequestParam(value = "date",required = false) String date){
-        ValidationResultDTO result = waybillDetailService.validateData(date);
+    public RestResult<ValidationResultDTO> validateData(@RequestParam("billMonth") String billMonth){
+        ValidationResultDTO result = waybillDetailService.validateData(billMonth);
         return RestResult.ok(result);
     }
 
     /**
-     * 计算运单费用
-     * @param date 账单月份（格式：yyyy-MM）
-     * @return 操作结果
+     * 计算运单费用（工作流CALCULATE步骤，异步执行）
+     * 前置条件：VALIDATE已人工核查确认
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @return 操作结果（异步执行，步骤状态通过批次详情接口查询）
      */
     @PostMapping("/calculate")
-    public RestResult<String> calculateBill(@RequestParam(value = "date",required = false) String date){
-        // TODO 后期要改必须得是异步请求
-        waybillDetailService.calculateBill(date);
-        return RestResult.ok("操作成功");
+    public RestResult<String> calculateBill(@RequestParam("billMonth") String billMonth){
+        waybillDetailService.calculateBill(billMonth);
+        return RestResult.ok("操作成功，正在异步执行");
     }
 
     /**
@@ -114,6 +128,56 @@ public class WaybillController {
     @PostMapping("/calculateSingle")
     public RestResult<ContractShopExcelDTO> calculateSingle(@RequestBody ContractShopExcelDTO dto) {
         return RestResult.ok(waybillDetailService.calculateSingleBill(dto));
+    }
+
+    /**
+     * 查询账单工作流批次列表
+     * 按账单月份倒序返回各批次及5个步骤的状态概览（IMPORT步骤状态由导入文件记录推导），不含导入文件明细
+     * @return 批次列表
+     */
+    @GetMapping("/flow/list")
+    public RestResult<List<WaybillFlowBatchDTO>> listFlowBatches() {
+        return RestResult.ok(waybillFlowService.listFlowBatches());
+    }
+
+    /**
+     * 查询账单工作流批次详情
+     * 返回该月份5个步骤状态及IMPORT步骤的导入文件清单（importFiles）
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @return 批次详情，批次不存在时 data 为 null
+     */
+    @GetMapping("/flow/{billMonth}")
+    public RestResult<WaybillFlowBatchDTO> getFlowDetail(@PathVariable("billMonth") String billMonth) {
+        return RestResult.ok(waybillFlowService.getFlowDetail(billMonth));
+    }
+
+    /**
+     * 人工确认步骤完成
+     * 仅支持 IMPORT（导入完成确认，要求所有文件均导入成功）和 VALIDATE（核查通过确认，要求校验已成功执行）
+     * 确认后步骤状态置为 PASSED，解锁下一步骤；重复确认幂等返回成功
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @param stepCode 步骤编码：IMPORT/VALIDATE
+     * @return 操作结果
+     */
+    @PostMapping("/flow/{billMonth}/confirm/{stepCode}")
+    public RestResult<String> confirmStep(@PathVariable("billMonth") String billMonth,
+                                          @PathVariable("stepCode") String stepCode) {
+        waybillFlowService.confirmStep(billMonth, stepCode);
+        return RestResult.ok("操作成功");
+    }
+
+    /**
+     * 跳过步骤
+     * 仅支持 IMPORT_DIFF（重量差异数据为可选步骤，无差异数据时跳过），仅待执行状态可跳过
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @param stepCode 步骤编码：IMPORT_DIFF
+     * @return 操作结果
+     */
+    @PostMapping("/flow/{billMonth}/skip/{stepCode}")
+    public RestResult<String> skipStep(@PathVariable("billMonth") String billMonth,
+                                       @PathVariable("stepCode") String stepCode) {
+        waybillFlowService.skipStep(billMonth, stepCode);
+        return RestResult.ok("操作成功");
     }
 
 }
