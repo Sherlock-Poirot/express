@@ -133,11 +133,13 @@ public class WaybillController {
     /**
      * 查询账单工作流批次列表
      * 按账单月份倒序返回各批次及5个步骤的状态概览（IMPORT步骤状态由导入文件记录推导），不含导入文件明细
+     * @param billMonth 账单月份（格式：yyyy-MM），不传则返回全部批次
      * @return 批次列表
      */
     @GetMapping("/flow/list")
-    public RestResult<List<WaybillFlowBatchDTO>> listFlowBatches() {
-        return RestResult.ok(waybillFlowService.listFlowBatches());
+    public RestResult<List<WaybillFlowBatchDTO>> listFlowBatches(
+            @RequestParam(value = "billMonth", required = false) String billMonth) {
+        return RestResult.ok(waybillFlowService.listFlowBatches(billMonth));
     }
 
     /**
@@ -152,11 +154,11 @@ public class WaybillController {
     }
 
     /**
-     * 人工确认步骤完成
-     * 仅支持 IMPORT（导入完成确认，要求所有文件均导入成功）和 VALIDATE（核查通过确认，要求校验已成功执行）
+     * 人工确认步骤完成（全部步骤均支持）
+     * IMPORT要求所有文件导入成功，其余步骤要求已成功执行（SUCCESS）
      * 确认后步骤状态置为 PASSED，解锁下一步骤；重复确认幂等返回成功
      * @param billMonth 账单月份（格式：yyyy-MM）
-     * @param stepCode 步骤编码：IMPORT/VALIDATE
+     * @param stepCode 步骤编码：IMPORT/IMPORT_DIFF/CLEAN/VALIDATE/CALCULATE
      * @return 操作结果
      */
     @PostMapping("/flow/{billMonth}/confirm/{stepCode}")
@@ -167,10 +169,10 @@ public class WaybillController {
     }
 
     /**
-     * 跳过步骤
-     * 仅支持 IMPORT_DIFF（重量差异数据为可选步骤，无差异数据时跳过），仅待执行状态可跳过
+     * 跳过步骤（全部步骤均支持）
+     * 仅待执行（WAITING）状态可跳过；IMPORT需无导入文件记录
      * @param billMonth 账单月份（格式：yyyy-MM）
-     * @param stepCode 步骤编码：IMPORT_DIFF
+     * @param stepCode 步骤编码：IMPORT/IMPORT_DIFF/CLEAN/VALIDATE/CALCULATE
      * @return 操作结果
      */
     @PostMapping("/flow/{billMonth}/skip/{stepCode}")
@@ -178,6 +180,19 @@ public class WaybillController {
                                        @PathVariable("stepCode") String stepCode) {
         waybillFlowService.skipStep(billMonth, stepCode);
         return RestResult.ok("操作成功");
+    }
+
+    /**
+     * 重置指定月份的账单工作流（整批作废重来）
+     * 删除该月运单明细（t_waybill_detail）、原始导入数据（t_waybill_detail_original）及导入文件记录，
+     * 并将5个步骤全部复位到待执行状态；存在执行中步骤时拒绝重置
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     * @return 操作结果
+     */
+    @PostMapping("/flow/{billMonth}/reset")
+    public RestResult<String> resetFlow(@PathVariable("billMonth") String billMonth) {
+        waybillFlowService.resetFlow(billMonth);
+        return RestResult.ok("重置成功");
     }
 
 }

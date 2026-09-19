@@ -24,9 +24,10 @@ public interface WaybillFlowService {
     /**
      * 查询工作流批次列表
      * 按账单月份倒序返回各批次及5个步骤的状态概览，不含导入文件明细
+     * @param billMonth 账单月份（格式：yyyy-MM），为空时返回全部批次
      * @return 批次列表
      */
-    List<WaybillFlowBatchDTO> listFlowBatches();
+    List<WaybillFlowBatchDTO> listFlowBatches(String billMonth);
 
     /**
      * 查询指定月份的工作流批次详情
@@ -37,21 +38,30 @@ public interface WaybillFlowService {
     WaybillFlowBatchDTO getFlowDetail(String billMonth);
 
     /**
-     * 人工确认步骤完成
-     * 仅支持IMPORT（导入完成确认，要求所有文件均导入成功）和VALIDATE（核查通过确认，要求校验已成功执行）
+     * 人工确认步骤完成（全部5个步骤均支持）
+     * IMPORT要求所有文件均导入成功；IMPORT_DIFF/CLEAN/VALIDATE/CALCULATE要求步骤已成功执行（SUCCESS）
      * 确认后步骤状态置为PASSED，解锁下一步骤
      * @param billMonth 账单月份（格式：yyyy-MM）
-     * @param stepCode 步骤编码：IMPORT/VALIDATE
+     * @param stepCode 步骤编码：IMPORT/IMPORT_DIFF/CLEAN/VALIDATE/CALCULATE
      */
     void confirmStep(String billMonth, String stepCode);
 
     /**
-     * 跳过步骤
-     * 仅支持IMPORT_DIFF（重量差异数据为可选步骤，无差异数据时跳过），仅WAITING状态可跳过
+     * 跳过步骤（全部5个步骤均支持）
+     * 仅WAITING（未执行）状态可跳过；IMPORT额外要求该月无导入文件记录（已导过数据不能跳过）
      * @param billMonth 账单月份（格式：yyyy-MM）
-     * @param stepCode 步骤编码：IMPORT_DIFF
+     * @param stepCode 步骤编码：IMPORT/IMPORT_DIFF/CLEAN/VALIDATE/CALCULATE
      */
     void skipStep(String billMonth, String stepCode);
+
+    /**
+     * 重置指定月份的账单工作流（整批作废重来）
+     * 删除 t_waybill_detail、t_waybill_detail_original 该月运单数据及导入文件记录，
+     * 并将5个步骤全部复位到 WAITING（清空执行痕迹）
+     * 事务执行保证原子性；存在执行中（RUNNING）步骤时拒绝重置
+     * @param billMonth 账单月份（格式：yyyy-MM）
+     */
+    void resetFlow(String billMonth);
 
     /**
      * 校验IMPORT步骤是否允许继续导入文件
