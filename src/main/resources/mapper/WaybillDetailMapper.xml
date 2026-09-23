@@ -45,11 +45,16 @@
   </insert>
 
   <update id="updateExtraFee">
-    UPDATE t_waybill_detail
-    SET extra_fee = 0.1
-    WHERE
-    (province = '上海' OR destination LIKE CONCAT('%', '太仓', '%') OR destination LIKE CONCAT('%', '昆山', '%'))
-    AND DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
+    <!-- 扶持派费：按 t_support_fee_config 配置的省份/目的地市/生效区间赋值，替代原写死规则；
+         city 为空表示该省全部加收，city 非空时模糊匹配 destination -->
+    UPDATE t_waybill_detail d
+    INNER JOIN t_support_fee_config c
+      ON d.province = c.province
+     AND (c.city IS NULL OR c.city = '' OR d.destination LIKE CONCAT('%', c.city, '%'))
+     AND d.scan_time &gt;= c.start_time
+     AND d.scan_time &lt; c.end_time
+    SET d.extra_fee = c.extra_fee
+    WHERE DATE_FORMAT(d.scan_time, '%Y-%m') = #{billMonth}
   </update>
   <select id="getShopCustomer" resultType="com.express.yto.dto.ShopCustomerNameDTO">
     SELECT

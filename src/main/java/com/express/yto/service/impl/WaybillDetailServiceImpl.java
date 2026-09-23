@@ -181,8 +181,8 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             log.info("{} 月没有数据，无需清洗", billMonth);
             return;
         }
-        // 1.更新扶持派费，上海，昆山市，太仓市 extra_fee 更新为0.1
-        // TODO 扶持派费会有变动这里写死是因为暂时只为圆通写的到时候要做成可配置的并且有效时间也要加上
+        // 1.更新扶持派费：按 t_support_fee_config 配置的省份/目的地市/生效区间（左闭右开）对 extra_fee 赋值
+        // 规则变动只需在配置表中增改记录并重跑清洗，无需改代码
         waybillDetailMapper.updateExtraFee(billMonth);
         waybillDetailMapper.updateEmpType(billMonth);
 //        waybillDetailMapper.updateExpressFee(date);
