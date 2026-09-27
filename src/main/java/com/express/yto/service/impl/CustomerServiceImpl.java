@@ -37,15 +37,35 @@ import com.express.yto.model.Prepayment;
 import com.express.yto.model.ShopEmp;
 import com.express.yto.service.CustomerService;
 import java.math.BigDecimal;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -453,6 +473,217 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         }
 
         return result;
+    }
+
+    /**
+     * 导出所有客户价格表：每客户一个sheet（名称=客户名称），详情为空的客户跳过
+     * 表结构对齐前端Price.vue详情弹窗：开始/结束日期、预付款、区域、各固定重量档、首重、续重 + 备注/区域说明
+     */
+    @Override
+    public void exportAllPrice(HttpServletResponse response) {
+        QueryWrapper<Customer> qw = new QueryWrapper<>();
+        qw.orderByAsc("code");
+        List<Customer> customers = customerMapper.selectList(qw);
+        if (CollectionUtils.isEmpty(customers)) {
+            throw new BusinessException("暂无客户数据，无法导出");
+        }
+
+        int exportedCount = 0;
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            CellStyle headerStyle = buildHeaderStyle(workbook);
+            CellStyle mergedStyle = buildMergedStyle(workbook);
+            Set<String> usedSheetNames = new HashSet<>();
+
+            for (Customer customer : customers) {
+                // 复用详情接口逻辑，保证导出内容与页面展示一致
+                List<CustomerPriceDetailDTO> priceList = getPrice(customer.getCode());
+                if (CollectionUtils.isEmpty(priceList)) {
+                    continue;
+                }
+                // 过滤明细行为空的时段，全部为空则该客户不导出
+                List<CustomerPriceDetailDTO> periods = priceList.stream()
+                        .filter(p -> CollectionUtils.isNotEmpty(p.getDetail()))
+                        .collect(Collectors.toList());
+                if (periods.isEmpty()) {
+                    continue;
+                }
+                Sheet sheet = workbook.createSheet(buildUniqueSheetName(customer.getCustName(), usedSheetNames));
+                writePriceSheet(sheet, periods, headerStyle, mergedStyle);
+                exportedCount++;
+            }
+
+            if (exportedCount == 0) {
+                throw new BusinessException("所有客户均无价格明细，未生成导出文件");
+            }
+
+            String fileName = "客户价格表_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                    + ".xlsx";
+            String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8.toString())
+                    .replaceAll("\\+", "%20");
+            response.reset();
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setCharacterEncoding("UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + encodedFileName
+                    + "\"; filename*=UTF-8''" + encodedFileName);
+            workbook.write(response.getOutputStream());
+            response.getOutputStream().flush();
+        } catch (IOException e) {
+            throw new BusinessException("导出价格表失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 写入单个客户的价格sheet：表头 + 各时段数据行 + 备注行（合并） + 区域说明行（合并）
+     */
+    private void writePriceSheet(Sheet sheet, List<CustomerPriceDetailDTO> periods,
+            CellStyle headerStyle, CellStyle mergedStyle) {
+        // 1. 汇总该客户所有时段的固定重量档位（数值升序去重），作为动态表头
+        TreeSet<BigDecimal> weights = new TreeSet<>();
+        periods.forEach(p -> p.getDetail().forEach(d -> {
+            if (CollectionUtils.isNotEmpty(d.getFixedFee())) {
+                d.getFixedFee().forEach(f -> {
+                    if (f.getWeight() != null) {
+                        weights.add(f.getWeight());
+                    }
+                });
+            }
+        }));
+        int totalCols = 6 + weights.size();
+
+        // 2. 表头
+        Row header = sheet.createRow(0);
+        int col = 0;
+        header.createCell(col++).setCellValue("开始日期");
+        header.createCell(col++).setCellValue("结束日期");
+        header.createCell(col++).setCellValue("预付款");
+        header.createCell(col++).setCellValue("区域");
+        for (BigDecimal w : weights) {
+            header.createCell(col++).setCellValue(w.stripTrailingZeros().toPlainString() + "kg");
+        }
+        header.createCell(col++).setCellValue("首重价格");
+        header.createCell(col).setCellValue("续重价格");
+        for (int i = 0; i < totalCols; i++) {
+            header.getCell(i).setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 14 * 256);
+        }
+
+        // 3. 数据行（每时段一组，行结构与前端详情弹窗一致）
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        int rowIdx = 1;
+        String areaNote = null;
+        for (CustomerPriceDetailDTO period : periods) {
+            if (areaNote == null && CollectionUtils.isNotEmpty(period.getAreas())) {
+                areaNote = buildAreaNote(period.getAreas());
+            }
+            for (PriceDetailDTO d : period.getDetail()) {
+                Map<BigDecimal, BigDecimal> feeMap = new HashMap<>();
+                if (CollectionUtils.isNotEmpty(d.getFixedFee())) {
+                    d.getFixedFee().forEach(f -> feeMap.put(f.getWeight(), f.getFee()));
+                }
+                Row row = sheet.createRow(rowIdx++);
+                col = 0;
+                row.createCell(col++).setCellValue(d.getStartTime() == null ? "" : d.getStartTime().format(fmt));
+                row.createCell(col++).setCellValue(d.getEndTime() == null ? "" : d.getEndTime().format(fmt));
+                writeNumberCell(row, col++, period.getPrepayment());
+                row.createCell(col++).setCellValue(d.getArea() == null ? "" : d.getArea());
+                for (BigDecimal w : weights) {
+                    BigDecimal fee = feeMap.get(w);
+                    row.createCell(col++).setCellValue(fee == null ? "-" : fee.stripTrailingZeros().toPlainString());
+                }
+                writeNumberCell(row, col++, d.getFirstFee());
+                writeNumberCell(row, col, d.getOverFee());
+            }
+            // 备注行（合并整行）
+            if (StringUtils.isNotBlank(period.getRemark())) {
+                rowIdx = writeMergedRow(sheet, rowIdx, totalCols, "备注：" + period.getRemark(), mergedStyle);
+            }
+        }
+
+        // 4. 区域说明行（合并整行，取自第一时段的区域列表）
+        if (areaNote != null) {
+            writeMergedRow(sheet, rowIdx, totalCols, "区域说明：" + areaNote, mergedStyle);
+        }
+        sheet.createFreezePane(0, 1);
+    }
+
+    /**
+     * 写数值单元格（空值写"-"）
+     */
+    private void writeNumberCell(Row row, int col, BigDecimal value) {
+        Cell cell = row.createCell(col);
+        if (value == null) {
+            cell.setCellValue("-");
+        } else {
+            cell.setCellValue(value.doubleValue());
+        }
+    }
+
+    /**
+     * 写整行合并的说明行（备注/区域说明），返回下一行行号
+     */
+    private int writeMergedRow(Sheet sheet, int rowIdx, int totalCols, String text, CellStyle style) {
+        Row row = sheet.createRow(rowIdx);
+        sheet.addMergedRegion(new CellRangeAddress(rowIdx, rowIdx, 0, totalCols - 1));
+        Cell cell = row.createCell(0);
+        cell.setCellValue(text);
+        cell.setCellStyle(style);
+        return rowIdx + 1;
+    }
+
+    /**
+     * 拼接区域说明：一区：xx、xx；二区：xx ...
+     */
+    private String buildAreaNote(List<Area> areas) {
+        return areas.stream()
+                .sorted(Comparator.comparing(Area::getAreaNum))
+                .map(a -> areaLabel(a.getAreaNum()) + "：" + a.getAreaCity())
+                .collect(Collectors.joining("；"));
+    }
+
+    private String areaLabel(Integer areaNum) {
+        switch (areaNum == null ? 0 : areaNum) {
+            case 1: return "一区";
+            case 2: return "二区";
+            case 3: return "三区";
+            case 4: return "四区";
+            case 5: return "五区";
+            default: return "其他";
+        }
+    }
+
+    /**
+     * 生成合法且唯一的sheet名：去除Excel非法字符、限长31、重名自动加后缀
+     */
+    private String buildUniqueSheetName(String rawName, Set<String> used) {
+        String base = StringUtils.isBlank(rawName) ? "未命名" : rawName.trim().replaceAll("[\\\\/:*?\\[\\]]", "");
+        if (base.length() > 28) {
+            base = base.substring(0, 28);
+        }
+        String name = base;
+        int i = 2;
+        while (used.contains(name)) {
+            name = base + "(" + i++ + ")";
+        }
+        used.add(name);
+        return name;
+    }
+
+    private CellStyle buildHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+
+    private CellStyle buildMergedStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setAlignment(HorizontalAlignment.LEFT);
+        style.setWrapText(true);
+        return style;
     }
 
 }

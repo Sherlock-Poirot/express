@@ -13,6 +13,7 @@ import com.express.yto.service.CustomerService;
 
 
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -82,6 +83,17 @@ public class CustomerController {
     public RestResult<String> addPrice(@RequestBody List<CustomerPriceInput> input){
         customerService.addPrice(input);
         return RestResult.ok("操作成功");
+    }
+
+    /**
+     * 导出所有客户价格表
+     * 每个客户一个sheet页（以客户名称命名），无价格明细的客户跳过
+     * 表头与价格详情弹窗一致：开始/结束日期、预付款、区域、固定重量档、首重、续重
+     * @param response HTTP响应（xlsx文件流）
+     */
+    @GetMapping("/exportAllPrice")
+    public void exportAllPrice(HttpServletResponse response){
+        customerService.exportAllPrice(response);
     }
 
 }
