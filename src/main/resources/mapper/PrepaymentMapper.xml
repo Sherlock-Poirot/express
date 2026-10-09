@@ -29,4 +29,12 @@
   <delete id="updateEndTime">
     update t_prepayment set end_time = #{endTime} where code = #{code} and end_time = '2999-12-31'
   </delete>
+  <select id="selectPriceRangesByCodes" resultMap="BaseResultMap">
+    select code, start_time, end_time
+    from t_prepayment
+    where code in
+    <foreach collection="codes" item="item" open="(" separator="," close=")">#{item}</foreach>
+      and start_time is not null
+      and end_time is not null
+  </select>
 </mapper>

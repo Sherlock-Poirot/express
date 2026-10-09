@@ -246,8 +246,23 @@
       AND DATE_FORMAT(t1.scan_time, '%Y-%m') = #{billMonth}
   </select>
   <select id="countByBillMonth" resultType="int">
-    SELECT COUNT(*) FROM t_waybill_detail 
+    SELECT COUNT(*) FROM t_waybill_detail
     WHERE DATE_FORMAT(scan_time, '%Y-%m') = #{billMonth}
+  </select>
+
+  <!-- 价格覆盖校验：按客户聚合当月运单的扫描时间范围
+       （仅普通客户 emp_type 为空，与规则2/3校验口径一致；TRIM防止空格导致分组/匹配不一致） -->
+  <select id="selectScanTimeRange" resultType="com.express.yto.dto.CustomerScanRangeDTO">
+    SELECT
+      TRIM(send_customer) AS code,
+      MAX(send_customer_name) AS customerName,
+      MIN(scan_time) AS minScanTime,
+      MAX(scan_time) AS maxScanTime
+    FROM t_waybill_detail
+    WHERE bill_month = #{billMonth}
+      AND send_customer IS NOT NULL AND TRIM(send_customer) != ''
+      AND (emp_type IS NULL OR TRIM(emp_type) = '')
+    GROUP BY TRIM(send_customer)
   </select>
 
   <!-- 运单明细归档：全量拷贝到 copy 表（排除 id，让 copy 表自增生成新主键，避免重复归档时主键冲突） -->

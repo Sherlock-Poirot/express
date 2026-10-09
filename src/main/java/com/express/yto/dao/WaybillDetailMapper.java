@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.express.yto.dto.BillIdAndFeeDTO;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
+import com.express.yto.dto.CustomerScanRangeDTO;
 import com.express.yto.dto.IdAndWeightDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.model.WaybillDetail;
@@ -51,6 +52,11 @@ public interface WaybillDetailMapper extends BaseMapper<WaybillDetail> {
     void updateWeight(@Param("list") List<IdAndWeightDTO> cacheList);
 
     int countByBillMonth(@Param("billMonth") String billMonth);
+
+    /**
+     * 价格覆盖校验：按客户聚合当月运单的扫描时间范围（仅普通客户，emp_type为空，与规则2/3校验口径一致）
+     */
+    List<CustomerScanRangeDTO> selectScanTimeRange(@Param("billMonth") String billMonth);
 
     void updateEmpType(@Param("billMonth") String billMonth);
 

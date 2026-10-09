@@ -16,6 +16,7 @@ import com.express.yto.dao.WaybillDetailMapper;
 import com.express.yto.dto.BillIdAndFeeDTO;
 import com.express.yto.dto.ContractShopExcelDTO;
 import com.express.yto.dto.CustomerCodeAndNameDTO;
+import com.express.yto.dto.CustomerScanRangeDTO;
 import com.express.yto.dto.EmpBillInfoDTO;
 import com.express.yto.dto.ShopCustomerNameDTO;
 import com.express.yto.dto.ValidationResultDTO;
@@ -405,6 +406,10 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
                 codes -> prepaymentMapper.selectList(new QueryWrapper<Prepayment>().select("code")
                         .in("code", codes)).stream().map(Prepayment::getCode).collect(Collectors.toSet()));
 
+        // 价格覆盖校验（硬校验）：t_prepayment 的价格区间必须覆盖每个客户当月运单的扫描时间范围，
+        // 否则计算阶段该客户部分账单算不出预付款
+        validatePriceCoverage(billMonth);
+
         Set<String> contractStaffNames = queryExistingCodes(monthSalesmanNames,
                 codes -> contractStaffMapper.selectList(new QueryWrapper<ContractStaff>().select("real_name")
                                 .in("real_name", codes)).stream()
@@ -478,6 +483,50 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         }
 
         return result;
+    }
+
+    /**
+     * 价格覆盖校验（硬校验，独立方法）：每个普通客户当月运单的扫描时间范围
+     * （MIN/MAX scan_time）都必须被 t_prepayment 中该客户的价格区间 [start_time, end_time) 覆盖，
+     * 最小值与最大值允许由不同的价格记录分别覆盖；
+     * 未覆盖的客户在计算阶段会算不出预付款，直接抛业务异常并附客户编码与名称
+     */
+    private void validatePriceCoverage(String billMonth) {
+        List<CustomerScanRangeDTO> scanRanges = waybillDetailMapper.selectScanTimeRange(billMonth);
+        if (scanRanges.isEmpty()) {
+            return;
+        }
+
+        // 批量查询这些客户在 t_prepayment 的全部价格区间（含历史区间，覆盖判定需要所有区间）
+        Set<String> codes = scanRanges.stream().map(CustomerScanRangeDTO::getCode).collect(Collectors.toSet());
+        Map<String, List<Prepayment>> rangesByCode = prepaymentMapper.selectPriceRangesByCodes(codes)
+                .stream()
+                .collect(Collectors.groupingBy(p -> p.getCode().trim()));
+
+        List<String> uncovered = new ArrayList<>();
+        for (CustomerScanRangeDTO range : scanRanges) {
+            List<Prepayment> ranges = rangesByCode.get(range.getCode());
+            if (ranges == null
+                    || !isTimeCovered(ranges, range.getMinScanTime())
+                    || !isTimeCovered(ranges, range.getMaxScanTime())) {
+                uncovered.add(range.getCode() + "（"
+                        + (range.getCustomerName() == null ? "" : range.getCustomerName()) + "）");
+            }
+        }
+        if (!uncovered.isEmpty()) {
+            throw new BusinessException("以下客户的价格表未覆盖当月账单时间范围，计算时将无法算出费用，请先维护价格表："
+                    + String.join("、", uncovered));
+        }
+    }
+
+    /**
+     * 判断时间点是否落在任一价格区间 [start_time, end_time) 内（左闭右开）
+     */
+    private boolean isTimeCovered(List<Prepayment> ranges, LocalDate time) {
+        if (time == null) {
+            return false;
+        }
+        return ranges.stream().anyMatch(r -> !r.getStartTime().isAfter(time) && r.getEndTime().isAfter(time));
     }
 
     /**
