@@ -73,7 +73,7 @@ public class SupportFeeConfigServiceImpl implements SupportFeeConfigService {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException("请选择要删除的记录");
         }
-        int count = supportFeeConfigMapper.deleteBatchIds(ids);
+        int count = supportFeeConfigMapper.deleteByIds(ids);
         log.info("批量删除扶持派费配置：删除{}条，ids={}", count, ids);
     }
 

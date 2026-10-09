@@ -25,6 +25,7 @@ import com.express.yto.dto.CustomerPriceInput;
 import com.express.yto.dto.CustomerSearchInput;
 import com.express.yto.dto.ExtraFeeDTO;
 import com.express.yto.dto.FixedTinyDTO;
+import com.express.yto.dto.PriceBatchAdjustInput;
 import com.express.yto.dto.PriceDeleteInput;
 import com.express.yto.dto.PriceDetailDTO;
 import com.express.yto.exception.BusinessException;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
@@ -385,6 +387,36 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
                 .customerName(e.getCustName()).build()).collect(Collectors.toList());
     }
 
+    /**
+     * 查询所有有当前生效价格（end_time=2999-12-31）的客户编码和名称，支持客户名称模糊匹配
+     * 用于批量调价等页面的客户列表展示
+     */
+    @Override
+    public List<CustomerCodeAndNameDTO> listCustomersWithPrice(String name) {
+        // 1. 三张价格表的当前生效客户编码并集（只查code列）
+        Set<String> codes = new HashSet<>();
+        fixedFeeMapper.selectList(new QueryWrapper<FixedFee>().eq("end_time", END_TIME).select("DISTINCT code"))
+                .forEach(f -> codes.add(f.getCode()));
+        overFeeMapper.selectList(new QueryWrapper<OverFee>().eq("end_time", END_TIME).select("DISTINCT code"))
+                .forEach(f -> codes.add(f.getCode()));
+        prepaymentMapper.selectList(new QueryWrapper<Prepayment>().eq("end_time", END_TIME).select("DISTINCT code"))
+                .forEach(p -> codes.add(p.getCode()));
+        if (codes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 2. 编码IN + 名称模糊过滤，只查必要列
+        QueryWrapper<Customer> qw = new QueryWrapper<>();
+        qw.select("code", "cust_name").in("code", codes);
+        if (StringUtils.isNotBlank(name)) {
+            qw.like("cust_name", name.trim());
+        }
+        qw.orderByAsc("code");
+        List<Customer> customers = customerMapper.selectList(qw);
+        return customers.stream().map(e -> CustomerCodeAndNameDTO.builder().customerCode(e.getCode())
+                .customerName(e.getCustName()).build()).collect(Collectors.toList());
+    }
+
     private Boolean deletePriceJudge(List<FixedFee> fixedList, List<OverFee> overList, List<Prepayment> prepaymentList,
             List<ExtraFee> extraFeeList) {
         return CollectionUtils.isEmpty(fixedList) && CollectionUtils.isEmpty(overList) && CollectionUtils
@@ -529,6 +561,174 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             response.getOutputStream().flush();
         } catch (IOException e) {
             throw new BusinessException("导出价格表失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量调整客户价格：对每个客户的当前生效价格（end_time=2999-12-31）截断旧数据并新增调整后数据
+     * 整体事务：任一客户校验失败全部回滚，避免部分调价成功造成价格混乱
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAdjustPrice(List<PriceBatchAdjustInput> inputs) {
+        if (CollectionUtils.isEmpty(inputs)) {
+            throw new BusinessException("调价参数不能为空");
+        }
+        for (PriceBatchAdjustInput input : inputs) {
+            adjustPriceForOneCustomer(input);
+        }
+    }
+
+    /**
+     * 调整单个客户价格：固定费/续重费按价格增减额、预付款按预付款增减额（均为加法，负数即降价）
+     * 三张表独立处理（各自可能无数据）；三张表全部无当前生效数据时报错
+     */
+    private void adjustPriceForOneCustomer(PriceBatchAdjustInput input) {
+        String code = StringUtils.trimToEmpty(input.getCode());
+        if (StringUtils.isBlank(code)) {
+            throw new BusinessException("客户编码不能为空");
+        }
+        if (input.getStartTime() == null) {
+            throw new BusinessException("客户[" + code + "]生效开始时间不能为空");
+        }
+        if (input.getPriceDelta() == null && input.getPrepayDelta() == null) {
+            throw new BusinessException("客户[" + code + "]价格增减额与预付款增减额不能同时为空");
+        }
+        if (input.getFiveAreaFlag() == null) {
+            throw new BusinessException("客户[" + code + "]五区是否修改不能为空（true=五区同步调价，false=五区不变）");
+        }
+        boolean includeFiveArea = input.getFiveAreaFlag();
+
+        int touched = 0;
+        touched += adjustFixedFee(input, code, includeFiveArea);
+        touched += adjustOverFee(input, code, includeFiveArea);
+        touched += adjustPrepayment(input, code);
+        if (touched == 0) {
+            throw new BusinessException("客户[" + code + "]无当前生效（end_time=2999-12-31）的价格数据，未做调整");
+        }
+    }
+
+    /**
+     * 调整固定费（t_fixed_fee 的 fee 字段）：旧数据end_time截断至开始时间，新增 fee+增减额 的数据
+     * 五区开关=false时 area=5 的数据完全不动（不截断不新增）
+     */
+    private int adjustFixedFee(PriceBatchAdjustInput input, String code, boolean includeFiveArea) {
+        BigDecimal delta = input.getPriceDelta();
+        if (delta == null) {
+            return 0;
+        }
+        QueryWrapper<FixedFee> qw = new QueryWrapper<>();
+        qw.eq("code", code).eq("end_time", END_TIME);
+        if (!includeFiveArea) {
+            qw.ne("area", 5);
+        }
+        List<FixedFee> currentList = fixedFeeMapper.selectList(qw);
+        if (currentList.isEmpty()) {
+            return 0;
+        }
+        validatePeriodAndResultPrice(currentList, FixedFee::getStartTime, FixedFee::getFee,
+                delta, input.getStartTime(), code, "固定费");
+        // 1. 截断旧数据：end_time 从 2999-12-31 改为开始时间
+        FixedFee truncate = new FixedFee();
+        truncate.setEndTime(input.getStartTime());
+        fixedFeeMapper.update(truncate, qw);
+        // 2. 新增调整后数据（不在原数据上修改，保留历史价格轨迹）
+        for (FixedFee fee : currentList) {
+            fixedFeeMapper.insert(FixedFee.builder()
+                    .code(fee.getCode())
+                    .area(fee.getArea())
+                    .weight(fee.getWeight())
+                    .fee(fee.getFee() == null ? null : fee.getFee().add(delta))
+                    .startTime(input.getStartTime())
+                    .endTime(END_TIME)
+                    .build());
+        }
+        return currentList.size();
+    }
+
+    /**
+     * 调整续重费（t_over_fee 的 first_fee 字段）：逻辑同固定费
+     */
+    private int adjustOverFee(PriceBatchAdjustInput input, String code, boolean includeFiveArea) {
+        BigDecimal delta = input.getPriceDelta();
+        if (delta == null) {
+            return 0;
+        }
+        QueryWrapper<OverFee> qw = new QueryWrapper<>();
+        qw.eq("code", code).eq("end_time", END_TIME);
+        if (!includeFiveArea) {
+            qw.ne("area", 5);
+        }
+        List<OverFee> currentList = overFeeMapper.selectList(qw);
+        if (currentList.isEmpty()) {
+            return 0;
+        }
+        validatePeriodAndResultPrice(currentList, OverFee::getStartTime, OverFee::getFirstFee,
+                delta, input.getStartTime(), code, "首重费");
+        OverFee truncate = new OverFee();
+        truncate.setEndTime(input.getStartTime());
+        overFeeMapper.update(truncate, qw);
+        for (OverFee fee : currentList) {
+            overFeeMapper.insert(OverFee.builder()
+                    .code(fee.getCode())
+                    .area(fee.getArea())
+                    .fee(fee.getFee())
+                    .firstWeight(fee.getFirstWeight())
+                    .firstFee(fee.getFirstFee() == null ? null : fee.getFirstFee().add(delta))
+                    .startTime(input.getStartTime())
+                    .endTime(END_TIME)
+                    .build());
+        }
+        return currentList.size();
+    }
+
+    /**
+     * 调整预付款（t_prepayment 的 pre_fee 字段）：预付款无区域概念，五区开关不影响
+     */
+    private int adjustPrepayment(PriceBatchAdjustInput input, String code) {
+        BigDecimal delta = input.getPrepayDelta();
+        if (delta == null) {
+            return 0;
+        }
+        QueryWrapper<Prepayment> qw = new QueryWrapper<>();
+        qw.eq("code", code).eq("end_time", END_TIME);
+        List<Prepayment> currentList = prepaymentMapper.selectList(qw);
+        if (currentList.isEmpty()) {
+            return 0;
+        }
+        validatePeriodAndResultPrice(currentList, Prepayment::getStartTime, Prepayment::getPreFee,
+                delta, input.getStartTime(), code, "预付款");
+        Prepayment truncate = new Prepayment();
+        truncate.setEndTime(input.getStartTime());
+        prepaymentMapper.update(truncate, qw);
+        for (Prepayment prepayment : currentList) {
+            Prepayment newRow = new Prepayment();
+            newRow.setCode(prepayment.getCode());
+            newRow.setPreFee(prepayment.getPreFee() == null ? null : prepayment.getPreFee().add(delta));
+            newRow.setStartTime(input.getStartTime());
+            newRow.setEndTime(END_TIME);
+            prepaymentMapper.insert(newRow);
+        }
+        return currentList.size();
+    }
+
+    /**
+     * 调价前置校验：开始时间必须晚于现有价格开始时间（防止区间倒挂/重复调价）、调整后价格不能为负
+     */
+    private <T> void validatePeriodAndResultPrice(List<T> currentList, Function<T, LocalDate> startGetter,
+            Function<T, BigDecimal> feeGetter, BigDecimal delta, LocalDate newStartTime,
+            String code, String feeName) {
+        for (T item : currentList) {
+            LocalDate startTime = startGetter.apply(item);
+            if (startTime != null && !startTime.isBefore(newStartTime)) {
+                throw new BusinessException("客户[" + code + "]生效开始时间必须晚于现有" + feeName
+                        + "价格的开始时间（" + startTime + "），请检查是否重复调价");
+            }
+            BigDecimal fee = feeGetter.apply(item);
+            if (fee != null && fee.add(delta).compareTo(BigDecimal.ZERO) < 0) {
+                throw new BusinessException("客户[" + code + "]调整后" + feeName + "不能为负数（现价" + fee
+                        + "，增减额" + delta + "）");
+            }
         }
     }
 
