@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -364,6 +365,25 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
                 codes -> shopEmpMapper.selectList(new QueryWrapper<ShopEmp>().select("shop_id")
                         .in("shop_id", codes)).stream().map(ShopEmp::getShopId).collect(Collectors.toSet()));
 
+        // settle_code 硬校验：当月运单去重后的结算编码必须在 t_shop_emp.shop_id 中存在，否则直接抛业务异常中断
+        // 缺失时回查运单明细，把店铺信息（结算编码/名称/物料类型）带进异常信息供前端展示
+        Set<String> missingShopIds = monthSettleCodes.stream()
+                .filter(c -> !shopIds.contains(c))
+                .collect(Collectors.toSet());
+        if (!missingShopIds.isEmpty()) {
+            QueryWrapper<WaybillDetail> missingQw = new QueryWrapper<>();
+            missingQw.select("settle_code", "settle_name", "material_type")
+                    .eq("bill_month", billMonth)
+                    .in("settle_code", missingShopIds);
+            Set<String> shopInfoSet = waybillDetailMapper.selectList(missingQw).stream()
+                    .map(w -> w.getSettleCode() + "（"
+                            + (w.getSettleName() == null ? "" : w.getSettleName()) + " / "
+                            + (w.getMaterialType() == null ? "" : w.getMaterialType()) + "）")
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            throw new BusinessException("以下结算编码在t_shop_emp表中不存在，请先维护后再校验："
+                    + String.join("、", shopInfoSet));
+        }
+
         Set<String> customerCodes = queryExistingCodes(monthCustomerCodes,
                 codes -> customerMapper.selectList(new QueryWrapper<Customer>().select("code")
                         .in("code", codes)).stream().map(c -> c.getCode() == null ? null : c.getCode().trim())
@@ -401,7 +421,6 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
         for (WaybillDetail waybill : waybillList) {
             String sendCustomer = waybill.getSendCustomer();
             String sendCustomerName = waybill.getSendCustomerName() == null ? "" : waybill.getSendCustomerName();
-            String settleCode = waybill.getSettleCode();
             String empType = waybill.getEmpType();
 
             // 跳过客户编码为空的数据
@@ -413,11 +432,7 @@ public class WaybillDetailServiceImpl extends ServiceImpl<WaybillDetailMapper, W
             // 组合错误key：客户编码_客户名称，用于去重
             String errorKey = sendCustomer + "_" + sendCustomerName;
 
-            // 校验规则1：settle_code 在 t_shop_emp 的 shop_id 是否存在（前后都trim，避免空格误报）
-            if (settleCode != null && !settleCode.trim().isEmpty() && !shopIds.contains(settleCode.trim())) {
-                String errorMsg = "settle_code(" + settleCode.trim() + ")在t_shop_emp表中不存在";
-                appendError(checkedErrors, errorKey, sendCustomer, sendCustomerName, errorMsg);
-            }
+            // settle_code 的存在性已在前置硬校验中完成（缺失直接抛异常并附带店铺明细），此处不再逐单校验
 
             // 如果 emp_type 有值，则跳过规则2和规则3（承包区数据不需要这些校验）
             if (empType != null && !empType.trim().isEmpty()) {
