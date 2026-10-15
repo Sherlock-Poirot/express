@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.RechargeFlowDetailMapper">
+
+    <sql id="Base_Column_List">
+        id, from_shop_id, from_shop_name, from_cust_code, from_cust_name,
+        to_shop_id, to_shop_name, to_cust_code, to_cust_name,
+        operate_type, recharge_platform, stock, operate_qty, unit_price, amount,
+        pay_type, special_remark, after_stock, operate_time, operator, remark,
+        create_time, update_time
+    </sql>
+
+    <select id="selectFlowPage" resultType="com.express.yto.model.RechargeFlowDetail">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM t_recharge_flow_detail
+        WHERE 1 = 1
+        <if test="fromShopId != null and fromShopId != ''">
+            AND from_shop_id = #{fromShopId}
+        </if>
+        <if test="toShopId != null and toShopId != ''">
+            AND to_shop_id = #{toShopId}
+        </if>
+        <if test="fromCustCode != null and fromCustCode != ''">
+            AND from_cust_code = #{fromCustCode}
+        </if>
+        <if test="toCustCode != null and toCustCode != ''">
+            AND to_cust_code = #{toCustCode}
+        </if>
+        <if test="operateType != null and operateType != ''">
+            AND operate_type = #{operateType}
+        </if>
+        <if test="startTime != null and startTime != ''">
+            AND operate_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null and endTime != ''">
+            AND operate_time &lt;= #{endTime}
+        </if>
+        ORDER BY operate_time DESC, id DESC
+    </select>
+
+</mapper>
