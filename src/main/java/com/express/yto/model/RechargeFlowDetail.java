@@ -4,84 +4,141 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 应收明细-面单流水明细实体
+ * 应收明细-面单流水明细表
+ * @author Detective
+ * @date Created in 2026/10/15
  */
 @Data
-@TableName("t_recharge_flow_detail")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@TableName(value = "t_recharge_flow_detail")
 public class RechargeFlowDetail {
+
+    public static final String COL_ID = "id";
+    public static final String COL_FROM_SHOP_ID = "from_shop_id";
+    public static final String COL_FROM_SHOP_NAME = "from_shop_name";
+    public static final String COL_FROM_CUST_CODE = "from_cust_code";
+    public static final String COL_FROM_CUST_NAME = "from_cust_name";
+    public static final String COL_TO_SHOP_ID = "to_shop_id";
+    public static final String COL_TO_SHOP_NAME = "to_shop_name";
+    public static final String COL_TO_CUST_CODE = "to_cust_code";
+    public static final String COL_TO_CUST_NAME = "to_cust_name";
+    public static final String COL_OPERATE_TYPE = "operate_type";
+    public static final String COL_RECHARGE_PLATFORM = "recharge_platform";
+    public static final String COL_STOCK = "stock";
+    public static final String COL_OPERATE_QTY = "operate_qty";
+    public static final String COL_UNIT_PRICE = "unit_price";
+    public static final String COL_AMOUNT = "amount";
+    public static final String COL_PAY_TYPE = "pay_type";
+    public static final String COL_SPECIAL_REMARK = "special_remark";
+    public static final String COL_AFTER_STOCK = "after_stock";
+    public static final String COL_OPERATE_TIME = "operate_time";
+    public static final String COL_OPERATOR = "operator";
+    public static final String COL_REMARK = "remark";
+    public static final String COL_MATCH_STATUS = "match_status";
+    public static final String COL_CREATE_TIME = "create_time";
+    public static final String COL_UPDATE_TIME = "update_time";
 
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    @TableField("from_shop_id")
+    /** 来源店铺id */
+    @TableField(value = "from_shop_id")
     private String fromShopId;
 
-    @TableField("from_shop_name")
+    /** 来源店铺名称 */
+    @TableField(value = "from_shop_name")
     private String fromShopName;
 
-    @TableField("from_cust_code")
+    /** 来源客户编码 */
+    @TableField(value = "from_cust_code")
     private String fromCustCode;
 
-    @TableField("from_cust_name")
+    /** 来源客户名称 */
+    @TableField(value = "from_cust_name")
     private String fromCustName;
 
-    @TableField("to_shop_id")
+    /** 目的店铺id */
+    @TableField(value = "to_shop_id")
     private String toShopId;
 
-    @TableField("to_shop_name")
+    /** 目的店铺名称 */
+    @TableField(value = "to_shop_name")
     private String toShopName;
 
-    @TableField("to_cust_code")
+    /** 目的客户编码 */
+    @TableField(value = "to_cust_code")
     private String toCustCode;
 
-    @TableField("to_cust_name")
+    /** 目的客户名称 */
+    @TableField(value = "to_cust_name")
     private String toCustName;
 
-    @TableField("operate_type")
+    /** 操作类型 */
+    @TableField(value = "operate_type")
     private String operateType;
 
-    @TableField("recharge_platform")
+    /** 充值平台 */
+    @TableField(value = "recharge_platform")
     private String rechargePlatform;
 
-    @TableField("stock")
+    /** 库存 */
+    @TableField(value = "stock")
     private Integer stock;
 
-    @TableField("operate_qty")
+    /** 操作数量 */
+    @TableField(value = "operate_qty")
     private Integer operateQty;
 
-    @TableField("unit_price")
+    /** 单价 */
+    @TableField(value = "unit_price")
     private BigDecimal unitPrice;
 
-    @TableField("amount")
+    /** 金额 */
+    @TableField(value = "amount")
     private BigDecimal amount;
 
-    @TableField("pay_type")
+    /** 支付方式 */
+    @TableField(value = "pay_type")
     private String payType;
 
-    @TableField("special_remark")
+    /** 特殊备注 */
+    @TableField(value = "special_remark")
     private String specialRemark;
 
-    @TableField("after_stock")
+    /** 操作后库存 */
+    @TableField(value = "after_stock")
     private Integer afterStock;
 
-    @TableField("operate_time")
+    /** 操作时间 */
+    @TableField(value = "operate_time")
     private LocalDateTime operateTime;
 
-    @TableField("operator")
+    /** 操作人 */
+    @TableField(value = "operator")
     private String operator;
 
-    @TableField("remark")
+    /** 备注 */
+    @TableField(value = "remark")
     private String remark;
 
-    @TableField("create_time")
+    /** 匹配状态（0未匹配，1部分匹配，2已匹配） */
+    @TableField(value = "match_status")
+    private Integer matchStatus;
+
+    @TableField(value = "create_time")
     private LocalDateTime createTime;
 
-    @TableField("update_time")
+    @TableField(value = "update_time")
     private LocalDateTime updateTime;
 }
