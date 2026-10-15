@@ -2,9 +2,11 @@ package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.express.yto.dto.RestResult;
+import com.express.yto.dto.RechargeCashMatchInput;
 import com.express.yto.model.CashFlowDetail;
 import com.express.yto.model.RechargeFlowDetail;
 import com.express.yto.service.CashFlowDetailService;
+import com.express.yto.service.RechargeCashRelationService;
 import com.express.yto.service.RechargeFlowDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -33,6 +35,29 @@ public class FlowDetailController {
 
     @Autowired
     private CashFlowDetailService cashFlowDetailService;
+
+    @Autowired
+    private RechargeCashRelationService rechargeCashRelationService;
+
+    /**
+     * 应收-实收多对多匹配
+     * 传入应收id列表和实收id列表，笛卡尔积插入关联表，同时更新两张表 match_status 为1（已匹配）
+     */
+    @PostMapping("/match")
+    public RestResult<String> match(@RequestBody RechargeCashMatchInput input) {
+        rechargeCashRelationService.match(input.getRechargeIds(), input.getCashIds());
+        return RestResult.ok("匹配成功");
+    }
+
+    /**
+     * 取消应收-实收匹配
+     * 删除关联记录，若无剩余关联则 match_status 改回0（未匹配）
+     */
+    @PostMapping("/unmatch")
+    public RestResult<String> unmatch(@RequestBody RechargeCashMatchInput input) {
+        rechargeCashRelationService.unmatch(input.getRechargeIds(), input.getCashIds());
+        return RestResult.ok("取消匹配成功");
+    }
 
     /**
      * 面单流水明细导入

@@ -67,7 +67,7 @@ public class CashFlowDetail {
     @TableField(value = "remark")
     private String remark;
 
-    /** 匹配状态（0未匹配，1部分匹配，2已匹配） */
+    /** 匹配状态（0未匹配，1已匹配） */
     @TableField(value = "match_status")
     private Integer matchStatus;
 

@@ -57,4 +57,22 @@ public interface RechargeCashRelationService {
      * 根据实收流水id查询所有关联关系（用于查看某笔实收核销了哪些应收）
      */
     List<RechargeCashRelation> listByCashId(Long cashId);
+
+    /**
+     * 应收-实收多对多匹配
+     * 将传入的应收id列表与实收id列表做笛卡尔积，逐对插入关联表，
+     * 并将两张表的 match_status 更新为1（已匹配）
+     * @param rechargeIds 应收流水id列表
+     * @param cashIds 实收流水id列表
+     */
+    void match(List<Long> rechargeIds, List<Long> cashIds);
+
+    /**
+     * 取消应收-实收匹配
+     * 删除传入的应收id与实收id之间的关联记录，
+     * 若某条应收/实收已无任何关联记录，则将其 match_status 改回0（未匹配）
+     * @param rechargeIds 应收流水id列表
+     * @param cashIds 实收流水id列表
+     */
+    void unmatch(List<Long> rechargeIds, List<Long> cashIds);
 }
