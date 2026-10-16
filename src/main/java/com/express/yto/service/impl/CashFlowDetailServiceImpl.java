@@ -3,13 +3,19 @@ package com.express.yto.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.CashFlowDetailMapper;
+import com.express.yto.enums.CashFlowPlatformEnum;
 import com.express.yto.exception.BusinessException;
+import com.express.yto.factory.CashFlowImportFactory;
 import com.express.yto.model.CashFlowDetail;
 import com.express.yto.service.CashFlowDetailService;
+import com.express.yto.service.CashFlowImportHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,10 +27,36 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class CashFlowDetailServiceImpl implements CashFlowDetailService {
+public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper, CashFlowDetail>
+        implements CashFlowDetailService {
 
     @Autowired
     private CashFlowDetailMapper cashFlowDetailMapper;
+
+    @Autowired
+    private CashFlowImportFactory cashFlowImportFactory;
+
+    @Override
+    @Transactional
+    public Integer importExcel(MultipartFile file, Integer platform) {
+        // 工厂按平台类型分发到对应的解析处理器
+        CashFlowImportHandler handler = cashFlowImportFactory.getHandler(platform);
+        List<CashFlowDetail> detailList = handler.parse(file);
+        if (detailList == null || detailList.isEmpty()) {
+            return 0;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (CashFlowDetail detail : detailList) {
+            // 统一填充：导入的流水归属该平台，若字典值与枚举type不一致，去对应handler里单独处理
+            detail.setPlatform(platform);
+            detail.setCreateTime(now);
+            detail.setUpdateTime(now);
+        }
+        saveBatch(detailList);
+        log.info("资金流水导入完成：平台={}（{}），导入{}条",
+                platform, CashFlowPlatformEnum.of(platform).getName(), detailList.size());
+        return detailList.size();
+    }
 
     @Override
     public IPage<CashFlowDetail> search(String custName, Integer platform, Integer actualType, Integer markType,

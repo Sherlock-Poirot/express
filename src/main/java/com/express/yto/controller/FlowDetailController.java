@@ -40,6 +40,17 @@ public class FlowDetailController {
     private RechargeCashRelationService rechargeCashRelationService;
 
     /**
+     * 资金流水明细导入（工厂模式按平台类型分发解析）
+     * @param file 上传的流水文件
+     * @param platform 平台类型（1微信，2支付宝，3台州银行，4工商银行，5农商银行）
+     */
+    @PostMapping("/cash/import")
+    public RestResult<Integer> cashImport(@RequestParam("file") MultipartFile file,
+                                          @RequestParam("platform") Integer platform) {
+        return RestResult.ok(cashFlowDetailService.importExcel(file, platform));
+    }
+
+    /**
      * 应收-实收多对多匹配
      * 传入应收id列表和实收id列表，笛卡尔积插入关联表，同时更新两张表 match_status 为1（已匹配）
      */

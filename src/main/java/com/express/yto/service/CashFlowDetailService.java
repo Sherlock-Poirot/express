@@ -2,6 +2,7 @@ package com.express.yto.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.express.yto.model.CashFlowDetail;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +13,14 @@ import java.util.List;
  * @date Created in 2026/10/15
  */
 public interface CashFlowDetailService {
+
+    /**
+     * 资金流水明细导入（工厂模式按平台类型分发解析）
+     * @param file 上传的流水文件
+     * @param platform 平台类型（1微信，2支付宝，3台州银行，4工商银行，5农商银行）
+     * @return 导入条数
+     */
+    Integer importExcel(MultipartFile file, Integer platform);
 
     /**
      * 分页查询实收流水
