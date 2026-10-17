@@ -31,6 +31,7 @@ public class CashFlowDetail {
     public static final String COL_ACTUAL_TYPE = "actual_type";
     public static final String COL_MARK_TYPE = "mark_type";
     public static final String COL_PLATFORM = "platform";
+    public static final String COL_CATEGORY = "category";
     public static final String COL_REMARK = "remark";
     public static final String COL_MATCH_STATUS = "match_status";
     public static final String COL_CREATE_TIME = "create_time";
@@ -62,6 +63,10 @@ public class CashFlowDetail {
     /** 平台（关联字典platform） */
     @TableField(value = "platform")
     private Integer platform;
+
+    /** 类目 */
+    @TableField(value = "category")
+    private String category;
 
     /** 备注 */
     @TableField(value = "remark")

@@ -5,19 +5,24 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.express.yto.dao.CashFlowDetailMapper;
+import com.express.yto.dto.PlatformOptionDTO;
 import com.express.yto.enums.CashFlowPlatformEnum;
 import com.express.yto.exception.BusinessException;
 import com.express.yto.factory.CashFlowImportFactory;
 import com.express.yto.model.CashFlowDetail;
+import com.express.yto.model.SysDictItem;
 import com.express.yto.service.CashFlowDetailService;
 import com.express.yto.service.CashFlowImportHandler;
+import com.express.yto.service.SysDictService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -35,6 +40,22 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
 
     @Autowired
     private CashFlowImportFactory cashFlowImportFactory;
+
+    @Autowired
+    private SysDictService sysDictService;
+
+    @Override
+    public List<PlatformOptionDTO> listPlatformOptions() {
+        List<SysDictItem> items = sysDictService.getDictItems("platform");
+        List<PlatformOptionDTO> options = new ArrayList<>(items.size());
+        for (SysDictItem item : items) {
+            options.add(PlatformOptionDTO.builder()
+                    .value(Integer.valueOf(item.getDictValue()))
+                    .label(item.getDictLabel())
+                    .build());
+        }
+        return options;
+    }
 
     @Override
     @Transactional
@@ -59,9 +80,30 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
     }
 
     @Override
+    public List<CashFlowDetail> list(String custName, Integer platform, Integer actualType, Integer markType,
+                                     Integer matchStatus, BigDecimal minAmount, BigDecimal maxAmount,
+                                     LocalDateTime startTime, LocalDateTime endTime) {
+        return cashFlowDetailMapper.selectList(buildQueryWrapper(custName, platform, actualType, markType,
+                matchStatus, minAmount, maxAmount, startTime, endTime));
+    }
+
+    @Override
     public IPage<CashFlowDetail> search(String custName, Integer platform, Integer actualType, Integer markType,
-                                         Integer matchStatus, LocalDateTime startTime, LocalDateTime endTime,
+                                         Integer matchStatus, BigDecimal minAmount, BigDecimal maxAmount,
+                                         LocalDateTime startTime, LocalDateTime endTime,
                                          Integer pageNo, Integer pageSize) {
+        return cashFlowDetailMapper.selectPage(new Page<>(pageNo, pageSize),
+                buildQueryWrapper(custName, platform, actualType, markType,
+                        matchStatus, minAmount, maxAmount, startTime, endTime));
+    }
+
+    /**
+     * 构建实收流水查询条件：所有条件可选，为空不参与过滤，按操作时间倒序
+     */
+    private QueryWrapper<CashFlowDetail> buildQueryWrapper(String custName, Integer platform, Integer actualType,
+                                                            Integer markType, Integer matchStatus,
+                                                            BigDecimal minAmount, BigDecimal maxAmount,
+                                                            LocalDateTime startTime, LocalDateTime endTime) {
         QueryWrapper<CashFlowDetail> wrapper = new QueryWrapper<>();
         if (custName != null && !custName.trim().isEmpty()) {
             wrapper.like(CashFlowDetail.COL_CUST_NAME, custName.trim());
@@ -78,6 +120,13 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
         if (matchStatus != null) {
             wrapper.eq(CashFlowDetail.COL_MATCH_STATUS, matchStatus);
         }
+        // 金额范围：左闭右闭
+        if (minAmount != null) {
+            wrapper.ge(CashFlowDetail.COL_AMOUNT, minAmount);
+        }
+        if (maxAmount != null) {
+            wrapper.le(CashFlowDetail.COL_AMOUNT, maxAmount);
+        }
         // 操作时间范围查询：左闭右闭
         if (startTime != null && endTime != null) {
             wrapper.ge(CashFlowDetail.COL_OPERATE_TIME, startTime)
@@ -88,7 +137,7 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
             wrapper.le(CashFlowDetail.COL_OPERATE_TIME, endTime);
         }
         wrapper.orderByDesc(CashFlowDetail.COL_OPERATE_TIME);
-        return cashFlowDetailMapper.selectPage(new Page<>(pageNo, pageSize), wrapper);
+        return wrapper;
     }
 
     @Override

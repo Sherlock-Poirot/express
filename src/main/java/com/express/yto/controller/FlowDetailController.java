@@ -1,6 +1,7 @@
 package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.express.yto.dto.PlatformOptionDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.dto.RechargeCashMatchInput;
 import com.express.yto.model.CashFlowDetail;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,6 +42,14 @@ public class FlowDetailController {
     private RechargeCashRelationService rechargeCashRelationService;
 
     /**
+     * 获取资金流水可导入的平台列表（供前端导入下拉框使用）
+     */
+    @GetMapping("/cash/platforms")
+    public RestResult<List<PlatformOptionDTO>> cashPlatforms() {
+        return RestResult.ok(cashFlowDetailService.listPlatformOptions());
+    }
+
+    /**
      * 资金流水明细导入（工厂模式按平台类型分发解析）
      * @param file 上传的流水文件
      * @param platform 平台类型（1微信，2支付宝，3台州银行，4工商银行，5农商银行）
@@ -48,6 +58,61 @@ public class FlowDetailController {
     public RestResult<Integer> cashImport(@RequestParam("file") MultipartFile file,
                                           @RequestParam("platform") Integer platform) {
         return RestResult.ok(cashFlowDetailService.importExcel(file, platform));
+    }
+
+    /**
+     * 实收流水列表查询（不分页）
+     * 所有条件均可选，为空则查询全部
+     * @param custName 客户名称（可选，模糊匹配）
+     * @param platform 平台（可选，精确匹配，对应platform字典项）
+     * @param actualType 实际收支类型（可选，-1支出，1收入）
+     * @param markType 标记收支类型（可选，-1支出，0不计收支，1收入）
+     * @param matchStatus 匹配状态（可选，0未匹配，1部分匹配，2已匹配）
+     * @param minAmount 金额下限（可选，含）
+     * @param maxAmount 金额上限（可选，含）
+     * @param startTime 操作时间起始（可选，格式 yyyy-MM-dd HH:mm:ss）
+     * @param endTime 操作时间结束（可选，格式 yyyy-MM-dd HH:mm:ss）
+     */
+    @GetMapping("/cash/list")
+    public RestResult<List<CashFlowDetail>> cashList(
+            @RequestParam(value = "custName", required = false) String custName,
+            @RequestParam(value = "platform", required = false) Integer platform,
+            @RequestParam(value = "actualType", required = false) Integer actualType,
+            @RequestParam(value = "markType", required = false) Integer markType,
+            @RequestParam(value = "matchStatus", required = false) Integer matchStatus,
+            @RequestParam(value = "minAmount", required = false) BigDecimal minAmount,
+            @RequestParam(value = "maxAmount", required = false) BigDecimal maxAmount,
+            @RequestParam(value = "startTime", required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+            @RequestParam(value = "endTime", required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime) {
+        return RestResult.ok(cashFlowDetailService.list(custName, platform, actualType, markType,
+                matchStatus, minAmount, maxAmount, startTime, endTime));
+    }
+
+    /**
+     * 实收流水分页查询
+     * 筛选条件同列表接口，数据量大时优先使用本接口，后续可改造为前端懒加载
+     * @param pageNo 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     */
+    @GetMapping("/cash/search")
+    public RestResult<IPage<CashFlowDetail>> cashSearch(
+            @RequestParam(value = "custName", required = false) String custName,
+            @RequestParam(value = "platform", required = false) Integer platform,
+            @RequestParam(value = "actualType", required = false) Integer actualType,
+            @RequestParam(value = "markType", required = false) Integer markType,
+            @RequestParam(value = "matchStatus", required = false) Integer matchStatus,
+            @RequestParam(value = "minAmount", required = false) BigDecimal minAmount,
+            @RequestParam(value = "maxAmount", required = false) BigDecimal maxAmount,
+            @RequestParam(value = "startTime", required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime startTime,
+            @RequestParam(value = "endTime", required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endTime,
+            @RequestParam(value = "pageNo", defaultValue = "1") Integer pageNo,
+            @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize) {
+        return RestResult.ok(cashFlowDetailService.search(custName, platform, actualType, markType,
+                matchStatus, minAmount, maxAmount, startTime, endTime, pageNo, pageSize));
     }
 
     /**
