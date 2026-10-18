@@ -1,7 +1,6 @@
 package com.express.yto.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.express.yto.dto.PlatformOptionDTO;
 import com.express.yto.dto.RestResult;
 import com.express.yto.dto.RechargeCashMatchInput;
 import com.express.yto.model.CashFlowDetail;
@@ -11,6 +10,7 @@ import com.express.yto.service.RechargeCashRelationService;
 import com.express.yto.service.RechargeFlowDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,22 +42,14 @@ public class FlowDetailController {
     private RechargeCashRelationService rechargeCashRelationService;
 
     /**
-     * 获取资金流水可导入的平台列表（供前端导入下拉框使用）
-     */
-    @GetMapping("/cash/platforms")
-    public RestResult<List<PlatformOptionDTO>> cashPlatforms() {
-        return RestResult.ok(cashFlowDetailService.listPlatformOptions());
-    }
-
-    /**
-     * 资金流水明细导入（工厂模式按平台类型分发解析）
+     * 资金流水明细导入（按账户id分发解析，导入的流水归属该账户）
      * @param file 上传的流水文件
-     * @param platform 平台类型（1微信，2支付宝，3台州银行，4工商银行，5农商银行）
+     * @param accountId 账户id（关联t_cash_account.id）
      */
     @PostMapping("/cash/import")
     public RestResult<Integer> cashImport(@RequestParam("file") MultipartFile file,
-                                          @RequestParam("platform") Integer platform) {
-        return RestResult.ok(cashFlowDetailService.importExcel(file, platform));
+                                          @RequestParam("accountId") Long accountId) {
+        return RestResult.ok(cashFlowDetailService.importExcel(file, accountId));
     }
 
     /**
@@ -151,6 +143,36 @@ public class FlowDetailController {
     public RestResult<String> rechargeUpdate(@RequestBody RechargeFlowDetail detail) {
         rechargeFlowDetailService.update(detail);
         return RestResult.ok("操作成功");
+    }
+
+    /**
+     * 应收流水自动匹配
+     * 入库/冻结/解冻/转单类记录标为已匹配，充值记录跨表计算单价和金额（匹配状态不变）
+     */
+    @PostMapping("/recharge/autoMatch")
+    public RestResult<String> rechargeAutoMatch() {
+        rechargeFlowDetailService.autoMatch();
+        return RestResult.ok("操作成功");
+    }
+
+    /**
+     * 批量删除应收流水明细
+     * 同时删除关联关系表中对应的匹配关系
+     */
+    @DeleteMapping("/recharge/batch")
+    public RestResult<String> rechargeBatchDelete(@RequestBody List<Long> ids) {
+        rechargeFlowDetailService.deleteByIds(ids);
+        return RestResult.ok("删除成功");
+    }
+
+    /**
+     * 批量删除实收流水明细
+     * 同时删除关联关系表中对应的匹配关系
+     */
+    @DeleteMapping("/cash/batch")
+    public RestResult<String> cashBatchDelete(@RequestBody List<Long> ids) {
+        cashFlowDetailService.deleteByIds(ids);
+        return RestResult.ok("删除成功");
     }
 
     /**

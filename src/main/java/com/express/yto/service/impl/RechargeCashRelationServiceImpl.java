@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.express.yto.dao.CashAccountMapper;
 import com.express.yto.dao.CashFlowDetailMapper;
 import com.express.yto.dao.RechargeCashRelationMapper;
 import com.express.yto.dao.RechargeFlowDetailMapper;
 import com.express.yto.exception.BusinessException;
+import com.express.yto.model.CashAccount;
 import com.express.yto.model.CashFlowDetail;
 import com.express.yto.model.RechargeCashRelation;
 import com.express.yto.model.RechargeFlowDetail;
@@ -19,6 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 应收-实收关联关系 Service 实现
@@ -37,6 +43,9 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
 
     @Autowired
     private CashFlowDetailMapper cashFlowDetailMapper;
+
+    @Autowired
+    private CashAccountMapper cashAccountMapper;
 
     @Override
     public IPage<RechargeCashRelation> search(Long rechargeId, Long cashId, String operator,
@@ -152,6 +161,19 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
         if (cashIds == null || cashIds.isEmpty()) {
             throw new BusinessException("实收流水id列表不能为空");
         }
+        // 校验：已匹配的流水不允许再匹配
+        Long matchedRechargeCount = rechargeFlowDetailMapper.selectCount(new QueryWrapper<RechargeFlowDetail>()
+                .in(RechargeFlowDetail.COL_ID, rechargeIds)
+                .eq(RechargeFlowDetail.COL_MATCH_STATUS, 1));
+        if (matchedRechargeCount > 0) {
+            throw new BusinessException("选中的应收流水中有 " + matchedRechargeCount + " 条已匹配，请先取消匹配再操作");
+        }
+        Long matchedCashCount = cashFlowDetailMapper.selectCount(new QueryWrapper<CashFlowDetail>()
+                .in(CashFlowDetail.COL_ID, cashIds)
+                .eq(CashFlowDetail.COL_MATCH_STATUS, 1));
+        if (matchedCashCount > 0) {
+            throw new BusinessException("选中的实收流水中有 " + matchedCashCount + " 条已匹配，请先取消匹配再操作");
+        }
         LocalDateTime now = LocalDateTime.now();
         // 笛卡尔积逐对插入关联表
         for (Long rechargeId : rechargeIds) {
@@ -165,52 +187,109 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
                 rechargeCashRelationMapper.insert(relation);
             }
         }
-        // 应收流水 match_status → 1（已匹配）
+        // 查实收流水关联的账户，得到账户名称（用于回写面单流水的支付方式）
+        String accountName = resolveAccountName(cashIds);
+        // 应收流水 match_status → 1（已匹配），支付方式标记为对应资金流水的账户名称
         UpdateWrapper<RechargeFlowDetail> rechargeUpdate = new UpdateWrapper<>();
         rechargeUpdate.in("id", rechargeIds).set("match_status", 1);
+        if (accountName != null) {
+            rechargeUpdate.set("pay_type", accountName);
+        }
         rechargeFlowDetailMapper.update(null, rechargeUpdate);
-        // 实收流水 match_status → 1（已匹配）
+        // 实收流水 match_status → 1（已匹配），类目标记为"面单费"
         UpdateWrapper<CashFlowDetail> cashUpdate = new UpdateWrapper<>();
-        cashUpdate.in("id", cashIds).set("match_status", 1);
+        cashUpdate.in("id", cashIds)
+                .set("match_status", 1)
+                .set("category", "面单费");
         cashFlowDetailMapper.update(null, cashUpdate);
-        log.info("匹配完成：应收{}条 × 实收{}条 = {}条关联记录", rechargeIds.size(), cashIds.size(),
-                rechargeIds.size() * cashIds.size());
+        log.info("匹配完成：应收{}条 × 实收{}条 = {}条关联记录，账户名称={}", rechargeIds.size(), cashIds.size(),
+                rechargeIds.size() * cashIds.size(), accountName);
+    }
+
+    /**
+     * 取匹配的实收流水对应的账户名称，用于回写面单流水的支付方式
+     * 多账户场景取第一个有账户名称的账户；无账户则返回null（不覆盖原支付方式）
+     */
+    private String resolveAccountName(List<Long> cashIds) {
+        List<CashFlowDetail> cashList = cashFlowDetailMapper.selectList(new QueryWrapper<CashFlowDetail>()
+                .select(CashFlowDetail.COL_ID, CashFlowDetail.COL_ACCOUNT_ID)
+                .in(CashFlowDetail.COL_ID, cashIds));
+        Set<Long> accountIds = cashList.stream()
+                .map(CashFlowDetail::getAccountId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (accountIds.isEmpty()) {
+            return null;
+        }
+        Map<Long, String> accountNameMap = cashAccountMapper.selectList(new QueryWrapper<CashAccount>()
+                        .select(CashAccount.COL_ID, CashAccount.COL_ACCOUNT_NAME)
+                        .in(CashAccount.COL_ID, accountIds))
+                .stream()
+                .collect(Collectors.toMap(CashAccount::getId, CashAccount::getAccountName, (a, b) -> a));
+        return cashList.stream()
+                .map(c -> accountNameMap.get(c.getAccountId()))
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
     @Transactional
     public void unmatch(List<Long> rechargeIds, List<Long> cashIds) {
-        if (rechargeIds == null || rechargeIds.isEmpty()) {
-            throw new BusinessException("应收流水id列表不能为空");
+        boolean hasRecharge = rechargeIds != null && !rechargeIds.isEmpty();
+        boolean hasCash = cashIds != null && !cashIds.isEmpty();
+        if (!hasRecharge && !hasCash) {
+            throw new BusinessException("应收流水id和实收流水id至少传一个");
         }
-        if (cashIds == null || cashIds.isEmpty()) {
-            throw new BusinessException("实收流水id列表不能为空");
+        // 按传入条件查询关联记录，反查另一方的id
+        QueryWrapper<RechargeCashRelation> wrapper = new QueryWrapper<>();
+        if (hasRecharge) {
+            wrapper.in(RechargeCashRelation.COL_RECHARGE_ID, rechargeIds);
         }
-        // 删除传入应收与实收之间的关联记录
-        QueryWrapper<RechargeCashRelation> deleteWrapper = new QueryWrapper<>();
-        deleteWrapper.in(RechargeCashRelation.COL_RECHARGE_ID, rechargeIds)
-                .in(RechargeCashRelation.COL_CASH_ID, cashIds);
-        int deleted = rechargeCashRelationMapper.delete(deleteWrapper);
-        // 检查应收流水是否还有剩余关联，没有则改回未匹配
-        for (Long rechargeId : rechargeIds) {
+        if (hasCash) {
+            wrapper.in(RechargeCashRelation.COL_CASH_ID, cashIds);
+        }
+        List<RechargeCashRelation> relations = rechargeCashRelationMapper.selectList(wrapper);
+        if (relations.isEmpty()) {
+            log.info("取消匹配：未查询到关联记录");
+            return;
+        }
+        // 关联记录涉及的全部应收id、实收id（含反查出来的另一方）
+        Set<Long> allRechargeIds = relations.stream()
+                .map(RechargeCashRelation::getRechargeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> allCashIds = relations.stream()
+                .map(RechargeCashRelation::getCashId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        // 删除本次涉及的关联记录
+        int deleted = rechargeCashRelationMapper.delete(wrapper);
+        // 检查应收流水是否还有剩余关联，没有则改回未匹配并清空支付方式
+        for (Long rechargeId : allRechargeIds) {
             Long count = rechargeCashRelationMapper.selectCount(new QueryWrapper<RechargeCashRelation>()
                     .eq(RechargeCashRelation.COL_RECHARGE_ID, rechargeId));
             if (count == 0) {
                 UpdateWrapper<RechargeFlowDetail> update = new UpdateWrapper<>();
-                update.eq("id", rechargeId).set("match_status", 0);
+                update.eq("id", rechargeId)
+                        .set("match_status", 0)
+                        .set("pay_type", null);
                 rechargeFlowDetailMapper.update(null, update);
             }
         }
-        // 检查实收流水是否还有剩余关联，没有则改回未匹配
-        for (Long cashId : cashIds) {
+        // 检查实收流水是否还有剩余关联，没有则改回未匹配并清空类目
+        for (Long cashId : allCashIds) {
             Long count = rechargeCashRelationMapper.selectCount(new QueryWrapper<RechargeCashRelation>()
                     .eq(RechargeCashRelation.COL_CASH_ID, cashId));
             if (count == 0) {
                 UpdateWrapper<CashFlowDetail> update = new UpdateWrapper<>();
-                update.eq("id", cashId).set("match_status", 0);
+                update.eq("id", cashId)
+                        .set("match_status", 0)
+                        .set("category", null);
                 cashFlowDetailMapper.update(null, update);
             }
         }
-        log.info("取消匹配完成：删除{}条关联记录", deleted);
+        log.info("取消匹配完成：删除{}条关联记录，涉及应收{}条、实收{}条",
+                deleted, allRechargeIds.size(), allCashIds.size());
     }
 }

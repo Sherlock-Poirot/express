@@ -23,12 +23,12 @@ public interface CashFlowDetailService {
     List<PlatformOptionDTO> listPlatformOptions();
 
     /**
-     * 资金流水明细导入（工厂模式按平台类型分发解析）
+     * 资金流水明细导入（按账户id查账户所属平台，工厂模式分发解析）
      * @param file 上传的流水文件
-     * @param platform 平台类型（1微信，2支付宝，3台州银行，4工商银行，5农商银行）
+     * @param accountId 账户id（关联t_cash_account.id，导入的流水按账户归属）
      * @return 导入条数
      */
-    Integer importExcel(MultipartFile file, Integer platform);
+    Integer importExcel(MultipartFile file, Long accountId);
 
     /**
      * 查询实收流水列表（不分页）

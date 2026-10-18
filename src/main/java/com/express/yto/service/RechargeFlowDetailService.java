@@ -64,4 +64,20 @@ public interface RechargeFlowDetailService {
      * @return 导入条数
      */
     Integer importExcel(MultipartFile file);
+
+    /**
+     * 批量删除面单流水明细
+     * 同时删除关联关系表中对应应收流水的匹配关系，避免产生孤儿关联数据
+     * @param ids 流水id列表
+     */
+    void deleteByIds(List<Long> ids);
+
+    /**
+     * 自动匹配面单流水
+     * 1. operate_type=入库 → pay_type=入库，标记已匹配
+     * 2. operate_type=冻结/解冻 → pay_type=转单，标记已匹配
+     * 3. remark 包含"转移" → pay_type=转单，标记已匹配
+     * 4. operate_type=充值 → 跨表(to_shop_id→t_shop_emp.code→t_prepayment)匹配单价和金额，匹配状态不变
+     */
+    void autoMatch();
 }
