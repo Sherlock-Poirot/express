@@ -335,7 +335,9 @@ public class RechargeFlowDetailServiceImpl extends ServiceImpl<RechargeFlowDetai
         if (matchStatus != null) {
             wrapper.eq(RechargeFlowDetail.COL_MATCH_STATUS, matchStatus);
         }
-        wrapper.orderByDesc(RechargeFlowDetail.COL_OPERATE_TIME);
+        // 按操作时间正序（时间小的在前），NULL值排最后
+        wrapper.orderByAsc(RechargeFlowDetail.COL_OPERATE_TIME + " IS NULL")
+                .orderByAsc(RechargeFlowDetail.COL_OPERATE_TIME);
         return wrapper;
     }
 }

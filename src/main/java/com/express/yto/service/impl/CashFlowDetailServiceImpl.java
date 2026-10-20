@@ -160,7 +160,9 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
         } else if (endTime != null) {
             wrapper.le(CashFlowDetail.COL_OPERATE_TIME, endTime);
         }
-        wrapper.orderByDesc(CashFlowDetail.COL_OPERATE_TIME);
+        // 按操作时间正序（时间小的在前），NULL值排最后
+        wrapper.orderByAsc(CashFlowDetail.COL_OPERATE_TIME + " IS NULL")
+                .orderByAsc(CashFlowDetail.COL_OPERATE_TIME);
         return wrapper;
     }
 
@@ -185,8 +187,6 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
         if (existing == null) {
             throw new BusinessException("流水记录不存在");
         }
-        detail.setCreateTime(existing.getCreateTime());
-        detail.setUpdateTime(LocalDateTime.now());
         cashFlowDetailMapper.updateById(detail);
         log.info("修改实收流水[{}]：客户={}，金额={}，实际收支类型={}，标记收支类型={}",
                 detail.getId(), detail.getCustName(), detail.getAmount(),
@@ -213,7 +213,8 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
     }
 
     /**
-     * 流水参数校验：客户名称 + 金额 + 收支类型
+     * 流水参数校验：客户名称 + 金额 + 实际收支类型；
+     * 标记收支类型(markType)字段暂时废弃，数据库允许为空，不做校验
      */
     private void validateDetail(CashFlowDetail detail) {
         if (detail.getCustName() == null || detail.getCustName().trim().isEmpty()) {
@@ -224,9 +225,6 @@ public class CashFlowDetailServiceImpl extends ServiceImpl<CashFlowDetailMapper,
         }
         if (detail.getActualType() == null) {
             throw new BusinessException("实际收支类型不能为空");
-        }
-        if (detail.getMarkType() == null) {
-            throw new BusinessException("标记收支类型不能为空");
         }
     }
 }
