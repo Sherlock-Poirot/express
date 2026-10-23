@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.express.yto.dao.CustPayerRelationMapper">
+  <resultMap id="BaseResultMap" type="com.express.yto.model.CustPayerRelation">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="cust_code" jdbcType="VARCHAR" property="custCode" />
+    <result column="payer_name" jdbcType="VARCHAR" property="payerName" />
+    <result column="account_id" jdbcType="BIGINT" property="accountId" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, cust_code, payer_name, account_id, create_time, update_time
+  </sql>
+
+  <!-- 手动匹配沉淀：按(cust_code, payer_name)幂等upsert；accountId为空时保留原值 -->
+  <insert id="upsertRelation">
+    insert into t_cust_payer_relation(cust_code, payer_name, account_id)
+    values (#{custCode}, #{payerName}, #{accountId})
+    on duplicate key update
+      account_id = coalesce(values(account_id), account_id),
+      update_time = current_timestamp
+  </insert>
+
+  <select id="selectByPayerName" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" />
+    from t_cust_payer_relation
+    where payer_name = #{payerName}
+  </select>
+
+  <select id="selectByPayerNameKeyword" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" />
+    from t_cust_payer_relation
+    where payer_name like concat('%', #{payerName}, '%')
+  </select>
+
+  <select id="selectByCustCode" resultMap="BaseResultMap">
+    select <include refid="Base_Column_List" />
+    from t_cust_payer_relation
+    where cust_code = #{custCode}
+  </select>
+</mapper>

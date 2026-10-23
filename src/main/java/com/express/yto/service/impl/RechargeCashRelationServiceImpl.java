@@ -13,6 +13,7 @@ import com.express.yto.model.CashAccount;
 import com.express.yto.model.CashFlowDetail;
 import com.express.yto.model.RechargeCashRelation;
 import com.express.yto.model.RechargeFlowDetail;
+import com.express.yto.service.CustPayerRelationService;
 import com.express.yto.service.RechargeCashRelationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +47,9 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
 
     @Autowired
     private CashAccountMapper cashAccountMapper;
+
+    @Autowired
+    private CustPayerRelationService custPayerRelationService;
 
     @Override
     public IPage<RechargeCashRelation> search(Long rechargeId, Long cashId, String operator,
@@ -204,6 +208,88 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
         cashFlowDetailMapper.update(null, cashUpdate);
         log.info("匹配完成：应收{}条 × 实收{}条 = {}条关联记录，账户名称={}", rechargeIds.size(), cashIds.size(),
                 rechargeIds.size() * cashIds.size(), accountName);
+        // 匹配成功后沉淀客户-付款方映射（学习动作，失败不影响匹配结果）
+        savePayerRelation(rechargeIds, cashIds);
+    }
+
+    /**
+     * 匹配成功后沉淀客户-付款方映射，供后续自动匹配锁定客户：
+     * 本次匹配涉及的所有应收流水客户编码唯一时，逐条实收流水沉淀映射；
+     * 客户编码为空或存在多个（歧义）时跳过沉淀，避免学到错误关系
+     */
+    private void savePayerRelation(List<Long> rechargeIds, List<Long> cashIds) {
+        try {
+            Set<String> custCodes = rechargeFlowDetailMapper.selectList(new QueryWrapper<RechargeFlowDetail>()
+                            .select(RechargeFlowDetail.COL_ID, RechargeFlowDetail.COL_TO_CUST_CODE)
+                            .in(RechargeFlowDetail.COL_ID, rechargeIds))
+                    .stream()
+                    .map(RechargeFlowDetail::getToCustCode)
+                    .filter(c -> c != null && !c.trim().isEmpty())
+                    .map(String::trim)
+                    .collect(Collectors.toSet());
+            if (custCodes.size() != 1) {
+                log.info("跳过沉淀客户-付款方映射：客户编码数={}（为空或多客户歧义），rechargeIds={}",
+                        custCodes.size(), rechargeIds);
+                return;
+            }
+            String custCode = custCodes.iterator().next();
+            List<CashFlowDetail> cashList = cashFlowDetailMapper.selectList(new QueryWrapper<CashFlowDetail>()
+                    .select(CashFlowDetail.COL_ID, CashFlowDetail.COL_CUST_NAME,
+                            CashFlowDetail.COL_ACCOUNT_ID, CashFlowDetail.COL_PLATFORM)
+                    .in(CashFlowDetail.COL_ID, cashIds));
+            for (CashFlowDetail cash : cashList) {
+                if (cash.getCustName() == null || cash.getCustName().trim().isEmpty()) {
+                    continue;
+                }
+                custPayerRelationService.upsertRelation(custCode, cash.getCustName(),
+                        cash.getAccountId(), cash.getPlatform());
+            }
+        } catch (Exception e) {
+            log.warn("沉淀客户-付款方映射失败（不影响匹配结果）：rechargeIds={}，cashIds={}", rechargeIds, cashIds, e);
+        }
+    }
+
+    /**
+     * 取消匹配时同步删除本次关联对应对的客户-付款方映射（学习回退）：
+     * 按本次实际删除的关联记录逐对定位(cust_code, payer_name)，避免多客户场景误删其他组合
+     */
+    private void removePayerRelations(List<RechargeCashRelation> relations) {
+        try {
+            Set<Long> rechargeIds = relations.stream()
+                    .map(RechargeCashRelation::getRechargeId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Set<Long> cashIds = relations.stream()
+                    .map(RechargeCashRelation::getCashId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (rechargeIds.isEmpty() || cashIds.isEmpty()) {
+                return;
+            }
+            Map<Long, String> custCodeMap = rechargeFlowDetailMapper.selectList(new QueryWrapper<RechargeFlowDetail>()
+                            .select(RechargeFlowDetail.COL_ID, RechargeFlowDetail.COL_TO_CUST_CODE)
+                            .in(RechargeFlowDetail.COL_ID, rechargeIds))
+                    .stream()
+                    .filter(r -> r.getToCustCode() != null && !r.getToCustCode().trim().isEmpty())
+                    .collect(Collectors.toMap(RechargeFlowDetail::getId, r -> r.getToCustCode().trim(), (a, b) -> a));
+            Map<Long, CashFlowDetail> cashMap = cashFlowDetailMapper.selectList(new QueryWrapper<CashFlowDetail>()
+                            .select(CashFlowDetail.COL_ID, CashFlowDetail.COL_CUST_NAME,
+                                    CashFlowDetail.COL_ACCOUNT_ID, CashFlowDetail.COL_PLATFORM)
+                            .in(CashFlowDetail.COL_ID, cashIds))
+                    .stream()
+                    .collect(Collectors.toMap(CashFlowDetail::getId, c -> c, (a, b) -> a));
+            for (RechargeCashRelation relation : relations) {
+                String custCode = custCodeMap.get(relation.getRechargeId());
+                CashFlowDetail cash = cashMap.get(relation.getCashId());
+                if (custCode == null || cash == null
+                        || cash.getCustName() == null || cash.getCustName().trim().isEmpty()) {
+                    continue;
+                }
+                custPayerRelationService.deleteRelation(custCode, cash.getCustName(), cash.getPlatform());
+            }
+        } catch (Exception e) {
+            log.warn("取消匹配时删除客户-付款方映射失败（不影响取消匹配结果）", e);
+        }
     }
 
     /**
@@ -265,6 +351,8 @@ public class RechargeCashRelationServiceImpl implements RechargeCashRelationServ
                 .collect(Collectors.toSet());
         // 删除本次涉及的关联记录
         int deleted = rechargeCashRelationMapper.delete(wrapper);
+        // 同步删除本次关联对应对的客户-付款方映射（学习回退，失败不影响取消匹配）
+        removePayerRelations(relations);
         // 检查应收流水是否还有剩余关联，没有则改回未匹配并清空支付方式
         for (Long rechargeId : allRechargeIds) {
             Long count = rechargeCashRelationMapper.selectCount(new QueryWrapper<RechargeCashRelation>()
