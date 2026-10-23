@@ -207,6 +207,7 @@ public class RechargeFlowDetailServiceImpl extends ServiceImpl<RechargeFlowDetai
 
         // 逐条匹配 [start_time, end_time) 区间内的 prepayment，回写 unit_price 和 amount
         int matchedCount = 0;
+        int noDepositCount = 0;
         for (RechargeFlowDetail detail : rechargeList) {
             String code = shopIdToCode.get(detail.getToShopId());
             if (code == null) {
@@ -233,10 +234,16 @@ public class RechargeFlowDetailServiceImpl extends ServiceImpl<RechargeFlowDetai
             if (detail.getOperateQty() != null) {
                 detail.setAmount(matched.getPreFee().multiply(BigDecimal.valueOf(detail.getOperateQty())));
             }
+            // 预付款为0：无押金模式，支付方式标记"无押金"并视为已匹配（无实收流水对应，不再参与后续匹配）
+            if (matched.getPreFee().compareTo(BigDecimal.ZERO) == 0) {
+                detail.setPayType("无押金");
+                detail.setMatchStatus(1);
+                noDepositCount++;
+            }
             baseMapper.updateById(detail);
             matchedCount++;
         }
-        log.info("自动匹配完成：充值记录跨表匹配成功{}条", matchedCount);
+        log.info("自动匹配完成：充值记录跨表匹配成功{}条（其中无押金{}条）", matchedCount, noDepositCount);
     }
 
     /**
