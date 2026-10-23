@@ -45,4 +45,9 @@ public interface CustPayerRelationService {
      * 按客户编码反查其全部付款方映射（管理与展示用）
      */
     List<CustPayerRelation> listByCustCode(String custCode);
+
+    /**
+     * 全量加载映射表（自动匹配内存计算用，数据量小）
+     */
+    List<CustPayerRelation> listAll();
 }

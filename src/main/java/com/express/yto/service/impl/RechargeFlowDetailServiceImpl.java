@@ -6,17 +6,24 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.express.yto.dao.CashAccountMapper;
+import com.express.yto.dao.CashFlowDetailMapper;
 import com.express.yto.dao.PrepaymentMapper;
 import com.express.yto.dao.RechargeCashRelationMapper;
 import com.express.yto.dao.RechargeFlowDetailMapper;
 import com.express.yto.dao.ShopEmpMapper;
 import com.express.yto.dto.RechargeFlowExcelDTO;
 import com.express.yto.exception.BusinessException;
+import com.express.yto.model.CashAccount;
+import com.express.yto.model.CashFlowDetail;
+import com.express.yto.model.CustPayerRelation;
 import com.express.yto.model.Prepayment;
 import com.express.yto.model.RechargeCashRelation;
 import com.express.yto.model.RechargeFlowDetail;
 import com.express.yto.model.ShopEmp;
+import com.express.yto.service.CustPayerRelationService;
 import com.express.yto.service.RechargeFlowDetailService;
+import com.express.yto.util.PayerNameUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -28,12 +35,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +65,15 @@ public class RechargeFlowDetailServiceImpl extends ServiceImpl<RechargeFlowDetai
 
     @Autowired
     private PrepaymentMapper prepaymentMapper;
+
+    @Autowired
+    private CashFlowDetailMapper cashFlowDetailMapper;
+
+    @Autowired
+    private CashAccountMapper cashAccountMapper;
+
+    @Autowired
+    private CustPayerRelationService custPayerRelationService;
 
     @Override
     public void update(RechargeFlowDetail detail) {
@@ -244,6 +264,247 @@ public class RechargeFlowDetailServiceImpl extends ServiceImpl<RechargeFlowDetai
             matchedCount++;
         }
         log.info("自动匹配完成：充值记录跨表匹配成功{}条（其中无押金{}条）", matchedCount, noDepositCount);
+
+        // ===== 部分C：客户-付款方映射真匹配（三轮分层判定，唯一命中才自动匹配，其余留人工） =====
+        autoMatchByRelation();
+    }
+
+    /**
+     * 自动匹配时间窗口（天）：应收与实收操作时间允许的最大偏差。
+     * 窗口仅用于收敛候选集，唯一性才是自动匹配的门槛
+     */
+    private static final int MATCH_WINDOW_DAYS = 3;
+
+    /**
+     * 部分C：客户-付款方映射真匹配，以每笔未匹配实收流水为锚，全量扫描未匹配池：
+     * L1 单笔精确：映射锁定客户 + 金额相等 + 窗口内候选唯一 → 1对1
+     * L2 全集求和：映射锁定客户 + 窗口内该客户全部未匹配应收求和=实收金额，且窗口内该客户实收唯一 → 1对N
+     * L3 全局唯一：同金额+窗口内应收唯一，且同金额其他实收的窗口不覆盖该应收 → 1对1（客户由应收推断，同时沉淀新映射）
+     * 多平台拆分转账（一笔应付多笔凑出）不做组合搜索，统一留人工
+     */
+    private void autoMatchByRelation() {
+        // 1. 加载内存数据：未匹配实收（收入方向、有付款方名称）、未匹配应收（有客户编码、有金额）
+        List<CashFlowDetail> cashList = cashFlowDetailMapper.selectList(new QueryWrapper<CashFlowDetail>()
+                .eq(CashFlowDetail.COL_MATCH_STATUS, 0)
+                .eq(CashFlowDetail.COL_ACTUAL_TYPE, 1)
+                .isNotNull(CashFlowDetail.COL_CUST_NAME)
+                .ne(CashFlowDetail.COL_CUST_NAME, "")
+                .isNotNull(CashFlowDetail.COL_OPERATE_TIME)
+                .isNotNull(CashFlowDetail.COL_AMOUNT));
+        if (cashList.isEmpty()) {
+            log.info("客户-付款方自动匹配：无未匹配实收流水，结束");
+            return;
+        }
+        List<RechargeFlowDetail> rechargeList = baseMapper.selectList(new QueryWrapper<RechargeFlowDetail>()
+                .eq(RechargeFlowDetail.COL_MATCH_STATUS, 0)
+                .isNotNull(RechargeFlowDetail.COL_TO_CUST_CODE)
+                .ne(RechargeFlowDetail.COL_TO_CUST_CODE, "")
+                .isNotNull(RechargeFlowDetail.COL_OPERATE_TIME)
+                .isNotNull(RechargeFlowDetail.COL_AMOUNT));
+        if (rechargeList.isEmpty()) {
+            log.info("客户-付款方自动匹配：无未匹配应收流水，结束");
+            return;
+        }
+        // 付款方映射表：键→客户编码集合（同一键对应多个客户为歧义，锁定阶段不使用）
+        List<CustPayerRelation> relations = custPayerRelationService.listAll();
+        Map<String, Set<String>> payerToCustCodes = relations.stream()
+                .filter(r -> r.getPayerName() != null && !r.getPayerName().trim().isEmpty()
+                        && r.getCustCode() != null && !r.getCustCode().trim().isEmpty())
+                .collect(Collectors.groupingBy(CustPayerRelation::getPayerName,
+                        Collectors.mapping(r -> r.getCustCode().trim(), Collectors.toSet())));
+        // 每笔实收预计算映射键并锁定客户（微信付款方名称先剥前缀再查映射；null=映射缺失或多客户歧义）
+        Map<Long, String> cashIdToCustCode = new HashMap<>();
+        for (CashFlowDetail cash : cashList) {
+            String payerKey = PayerNameUtil.resolvePayerKey(cash.getCustName(), cash.getPlatform());
+            Set<String> custCodes = payerToCustCodes.get(payerKey);
+            if (custCodes != null && custCodes.size() == 1) {
+                cashIdToCustCode.put(cash.getId(), custCodes.iterator().next());
+            }
+        }
+        // 配对结果与占用集合（同一批跑批内应收不重复使用）
+        Set<Long> usedRechargeIds = new HashSet<>();
+        Map<Long, List<Long>> matchPairs = new LinkedHashMap<>();
+        Map<Long, String> matchedCustCodes = new HashMap<>();
+        int l1Count = 0;
+        int l2Count = 0;
+        int l3Count = 0;
+
+        // 2. 第一轮 L1 单笔精确：映射锁定客户 + 金额相等 + 窗口内候选唯一 → 1对1
+        for (CashFlowDetail cash : cashList) {
+            if (matchPairs.containsKey(cash.getId())) {
+                continue;
+            }
+            String custCode = cashIdToCustCode.get(cash.getId());
+            if (custCode == null) {
+                continue;
+            }
+            List<RechargeFlowDetail> candidates = filterCandidates(rechargeList, usedRechargeIds,
+                    r -> custCode.equals(r.getToCustCode().trim())
+                            && r.getAmount().compareTo(cash.getAmount()) == 0
+                            && withinWindow(cash.getOperateTime(), r.getOperateTime()));
+            if (candidates.size() == 1) {
+                recordMatch(cash, candidates.get(0), custCode, matchPairs, matchedCustCodes, usedRechargeIds);
+                l1Count++;
+            }
+        }
+
+        // 3. 第二轮 L2 全集求和：映射锁定客户 + 窗口内该客户全部未匹配应收求和=实收金额，
+        // 且窗口内锁到同一客户的其他未匹配实收不存在（全集切分唯一）→ 1对N
+        for (CashFlowDetail cash : cashList) {
+            if (matchPairs.containsKey(cash.getId())) {
+                continue;
+            }
+            String custCode = cashIdToCustCode.get(cash.getId());
+            if (custCode == null) {
+                continue;
+            }
+            List<RechargeFlowDetail> windowAll = filterCandidates(rechargeList, usedRechargeIds,
+                    r -> custCode.equals(r.getToCustCode().trim())
+                            && withinWindow(cash.getOperateTime(), r.getOperateTime()));
+            if (windowAll.isEmpty()) {
+                continue;
+            }
+            BigDecimal sum = windowAll.stream()
+                    .map(RechargeFlowDetail::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (sum.compareTo(cash.getAmount()) != 0) {
+                continue;
+            }
+            boolean otherCashInWindow = cashList.stream()
+                    .filter(c2 -> !c2.getId().equals(cash.getId()) && !matchPairs.containsKey(c2.getId()))
+                    .anyMatch(c2 -> custCode.equals(cashIdToCustCode.get(c2.getId()))
+                            && withinWindow(cash.getOperateTime(), c2.getOperateTime()));
+            if (otherCashInWindow) {
+                continue;
+            }
+            List<Long> rechargeIds = windowAll.stream().map(RechargeFlowDetail::getId).collect(Collectors.toList());
+            matchPairs.put(cash.getId(), rechargeIds);
+            matchedCustCodes.put(cash.getId(), custCode);
+            usedRechargeIds.addAll(rechargeIds);
+            l2Count++;
+        }
+
+        // 4. 第三轮 L3 全局唯一兜底（映射缺失/歧义的实收也可用）：
+        // 同金额+窗口内未匹配应收唯一，且同金额其他实收的窗口不覆盖该应收（归属唯一）→ 1对1，客户由应收推断
+        for (CashFlowDetail cash : cashList) {
+            if (matchPairs.containsKey(cash.getId())) {
+                continue;
+            }
+            List<RechargeFlowDetail> candidates = filterCandidates(rechargeList, usedRechargeIds,
+                    r -> r.getAmount().compareTo(cash.getAmount()) == 0
+                            && withinWindow(cash.getOperateTime(), r.getOperateTime()));
+            if (candidates.size() != 1) {
+                continue;
+            }
+            RechargeFlowDetail candidate = candidates.get(0);
+            boolean ambiguous = cashList.stream()
+                    .filter(c2 -> !c2.getId().equals(cash.getId()) && !matchPairs.containsKey(c2.getId()))
+                    .filter(c2 -> c2.getAmount().compareTo(cash.getAmount()) == 0)
+                    .anyMatch(c2 -> withinWindow(c2.getOperateTime(), candidate.getOperateTime()));
+            if (ambiguous) {
+                continue;
+            }
+            recordMatch(cash, candidate, candidate.getToCustCode().trim(),
+                    matchPairs, matchedCustCodes, usedRechargeIds);
+            l3Count++;
+        }
+
+        // 5. 落库：插关联、批量回写状态、沉淀映射
+        if (matchPairs.isEmpty()) {
+            log.info("客户-付款方自动匹配完成：无新增匹配，其余留人工");
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        Map<Long, CashFlowDetail> cashById = cashList.stream()
+                .collect(Collectors.toMap(CashFlowDetail::getId, c -> c, (a, b) -> a));
+        // 关联表逐对插入（与手动匹配一致）
+        int relationCount = 0;
+        for (Map.Entry<Long, List<Long>> entry : matchPairs.entrySet()) {
+            for (Long rechargeId : entry.getValue()) {
+                RechargeCashRelation relation = new RechargeCashRelation();
+                relation.setRechargeId(rechargeId);
+                relation.setCashId(entry.getKey());
+                relation.setRelateTime(now);
+                relation.setCreateTime(now);
+                relation.setUpdateTime(now);
+                rechargeCashRelationMapper.insert(relation);
+                relationCount++;
+            }
+        }
+        // 实收回写：match_status=1、category=面单费（一次性批量）
+        UpdateWrapper<CashFlowDetail> cashUpdate = new UpdateWrapper<>();
+        cashUpdate.in("id", matchPairs.keySet())
+                .set("match_status", 1)
+                .set("category", "面单费");
+        cashFlowDetailMapper.update(null, cashUpdate);
+        // 应收回写：match_status=1、pay_type=实收账户名称；按账户名称分组批量更新，无账户不覆盖支付方式
+        Set<Long> accountIds = matchPairs.keySet().stream()
+                .map(cashById::get)
+                .map(CashFlowDetail::getAccountId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> accountNameMap = accountIds.isEmpty() ? Collections.emptyMap()
+                : cashAccountMapper.selectList(new QueryWrapper<CashAccount>()
+                        .select(CashAccount.COL_ID, CashAccount.COL_ACCOUNT_NAME)
+                        .in(CashAccount.COL_ID, accountIds))
+                .stream()
+                .collect(Collectors.toMap(CashAccount::getId, CashAccount::getAccountName, (a, b) -> a));
+        Map<String, List<Long>> payTypeGroups = new HashMap<>();
+        for (Map.Entry<Long, List<Long>> entry : matchPairs.entrySet()) {
+            String accountName = accountNameMap.get(cashById.get(entry.getKey()).getAccountId());
+            payTypeGroups.computeIfAbsent(accountName, k -> new ArrayList<>()).addAll(entry.getValue());
+        }
+        for (Map.Entry<String, List<Long>> group : payTypeGroups.entrySet()) {
+            UpdateWrapper<RechargeFlowDetail> rechargeUpdate = new UpdateWrapper<>();
+            rechargeUpdate.in("id", group.getValue()).set("match_status", 1);
+            if (group.getKey() != null) {
+                rechargeUpdate.set("pay_type", group.getKey());
+            }
+            baseMapper.update(null, rechargeUpdate);
+        }
+        // 沉淀映射：配对成功的实收按推断出的客户编码学习（幂等；L3配对沉淀的是新知识）
+        for (Map.Entry<Long, List<Long>> entry : matchPairs.entrySet()) {
+            CashFlowDetail cash = cashById.get(entry.getKey());
+            try {
+                custPayerRelationService.upsertRelation(matchedCustCodes.get(entry.getKey()),
+                        cash.getCustName(), cash.getAccountId(), cash.getPlatform());
+            } catch (Exception e) {
+                log.warn("自动匹配沉淀客户-付款方映射失败（不影响匹配结果）：cashId={}", entry.getKey(), e);
+            }
+        }
+        log.info("客户-付款方自动匹配完成：L1单笔精确{}笔，L2全集求和{}笔，L3全局唯一{}笔，"
+                + "新增关联{}条，其余留人工", l1Count, l2Count, l3Count, relationCount);
+    }
+
+    /**
+     * 从未占用应收中按条件筛选候选
+     */
+    private List<RechargeFlowDetail> filterCandidates(List<RechargeFlowDetail> rechargeList,
+                                                      Set<Long> usedRechargeIds,
+                                                      Predicate<RechargeFlowDetail> condition) {
+        return rechargeList.stream()
+                .filter(r -> !usedRechargeIds.contains(r.getId()))
+                .filter(condition)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 应收操作时间是否落在以实收时间为基准的时间窗口内（±MATCH_WINDOW_DAYS 天）
+     */
+    private boolean withinWindow(LocalDateTime cashTime, LocalDateTime rechargeTime) {
+        return !rechargeTime.isBefore(cashTime.minusDays(MATCH_WINDOW_DAYS))
+                && !rechargeTime.isAfter(cashTime.plusDays(MATCH_WINDOW_DAYS));
+    }
+
+    /**
+     * 记录一笔配对结果：实收id→应收id列表，占用该应收
+     */
+    private void recordMatch(CashFlowDetail cash, RechargeFlowDetail recharge, String custCode,
+                             Map<Long, List<Long>> matchPairs, Map<Long, String> matchedCustCodes,
+                             Set<Long> usedRechargeIds) {
+        matchPairs.computeIfAbsent(cash.getId(), k -> new ArrayList<>()).add(recharge.getId());
+        matchedCustCodes.put(cash.getId(), custCode);
+        usedRechargeIds.add(recharge.getId());
     }
 
     /**

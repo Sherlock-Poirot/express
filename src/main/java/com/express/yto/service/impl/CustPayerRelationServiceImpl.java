@@ -83,6 +83,11 @@ public class CustPayerRelationServiceImpl extends ServiceImpl<CustPayerRelationM
     }
 
     @Override
+    public List<CustPayerRelation> listAll() {
+        return custPayerRelationMapper.selectList(null);
+    }
+
+    @Override
     public List<CustPayerRelation> listByCustCode(String custCode) {
         if (custCode == null || custCode.trim().isEmpty()) {
             return new ArrayList<>();
