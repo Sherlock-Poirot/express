@@ -102,7 +102,7 @@ public class CustomerController {
      * 批量调整客户价格
      * 对每个客户 end_time=2999-12-31 的当前生效价格：旧数据截断至开始时间，新增调整后数据（保留历史轨迹）
      * priceDelta 作用于固定费fee与首重first_fee（正涨负降），prepayDelta 作用于预付款 pre_fee
-     * fiveAreaFlag=false 时五区（area=5）的固定费/首重费保持不变
+     * fiveAreaFlag=false 时五区（area=5）金额不调，仅同步生效时间（旧行截断、按原金额生成新行）
      * @param inputs 调价参数集合（整体事务，任一客户失败全部回滚）
      * @return 操作结果
      */

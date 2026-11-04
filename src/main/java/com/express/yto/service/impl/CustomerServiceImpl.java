@@ -7,6 +7,7 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -232,6 +233,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
     }
 
     @Override
+    @Transactional
     public void deletePrice(PriceDeleteInput input) {
         Map<String, Object> queryMap = new HashMap<>(4);
         queryMap.put("code", input.getCode());
@@ -259,6 +261,70 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
             List<Long> prepaymentIds = prepaymentList.stream().map(Prepayment::getId).collect(Collectors.toList());
             prepaymentMapper.deleteByIds(prepaymentIds);
         }
+        // 回补：删除后把剩余最新一段价格的 end_time 恢复为 2999-12-31（该段重新成为当前生效价格），
+        // 保证客户始终存在生效中的价格，列表与详情展示正确；剩余为空则跳过
+        LocalDate latestStart = restoreLatestPriceEndTime(input.getCode());
+        if (latestStart != null) {
+            // 客户表"最近价格开始时间"同步指向剩余最新一段，避免指向已被删除的时间段
+            customerMapper.update(Customer.builder().startTime(latestStart).build(),
+                    new QueryWrapper<Customer>().eq("code", input.getCode()));
+        }
+    }
+
+    /**
+     * 删除价格后回补生效段：把三张价格表中剩余记录里最新的 start_time 对应的整段（同一开始时间的所有行）
+     * 的 end_time 恢复为 2999-12-31。注意一段含多行（固定费每个重量档一行、续重每个区域一行），必须整段回补
+     * @return 剩余最新一段的开始时间（三表取最大值），无剩余记录时返回 null
+     */
+    private LocalDate restoreLatestPriceEndTime(String code) {
+        LocalDate latestStart = null;
+        // 固定费
+        QueryWrapper<FixedFee> fixedQw = new QueryWrapper<>();
+        fixedQw.eq("code", code).orderByDesc("start_time");
+        List<FixedFee> fixedRest = fixedFeeMapper.selectList(fixedQw);
+        if (!fixedRest.isEmpty()) {
+            LocalDate segStart = fixedRest.get(0).getStartTime();
+            UpdateWrapper<FixedFee> fixedUw = new UpdateWrapper<>();
+            fixedUw.eq("code", code).eq("start_time", segStart).set("end_time", END_TIME);
+            fixedFeeMapper.update(null, fixedUw);
+            latestStart = maxDate(latestStart, segStart);
+        }
+        // 续重费
+        QueryWrapper<OverFee> overQw = new QueryWrapper<>();
+        overQw.eq("code", code).orderByDesc("start_time");
+        List<OverFee> overRest = overFeeMapper.selectList(overQw);
+        if (!overRest.isEmpty()) {
+            LocalDate segStart = overRest.get(0).getStartTime();
+            UpdateWrapper<OverFee> overUw = new UpdateWrapper<>();
+            overUw.eq("code", code).eq("start_time", segStart).set("end_time", END_TIME);
+            overFeeMapper.update(null, overUw);
+            latestStart = maxDate(latestStart, segStart);
+        }
+        // 预付款
+        QueryWrapper<Prepayment> preQw = new QueryWrapper<>();
+        preQw.eq("code", code).orderByDesc("start_time");
+        List<Prepayment> preRest = prepaymentMapper.selectList(preQw);
+        if (!preRest.isEmpty()) {
+            LocalDate segStart = preRest.get(0).getStartTime();
+            UpdateWrapper<Prepayment> preUw = new UpdateWrapper<>();
+            preUw.eq("code", code).eq("start_time", segStart).set("end_time", END_TIME);
+            prepaymentMapper.update(null, preUw);
+            latestStart = maxDate(latestStart, segStart);
+        }
+        return latestStart;
+    }
+
+    /**
+     * 取两个日期中较大的（均可为null）
+     */
+    private LocalDate maxDate(LocalDate a, LocalDate b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return a.isAfter(b) ? a : b;
     }
 
     @Transactional
@@ -606,11 +672,15 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         if (touched == 0) {
             throw new BusinessException("客户[" + code + "]无当前生效（end_time=2999-12-31）的价格数据，未做调整");
         }
+        // 同步客户表"最近价格开始时间"，与价格表新生效时间保持一致（按code只更新单列，不整条覆盖）
+        UpdateWrapper<Customer> customerUpdate = new UpdateWrapper<>();
+        customerUpdate.eq("code", code).set("start_time", input.getStartTime());
+        baseMapper.update(null, customerUpdate);
     }
 
     /**
      * 调整固定费（t_fixed_fee 的 fee 字段）：旧数据end_time截断至开始时间，新增 fee+增减额 的数据
-     * 五区开关=false时 area=5 的数据完全不动（不截断不新增）
+     * 五区开关=false时五区金额不调，但时间轴同步（旧行截断、按原金额生成新行），保持生效开始时间与其他区域一致
      */
     private int adjustFixedFee(PriceBatchAdjustInput input, String code, boolean includeFiveArea) {
         BigDecimal delta = input.getPriceDelta();
@@ -624,7 +694,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         }
         List<FixedFee> currentList = fixedFeeMapper.selectList(qw);
         if (currentList.isEmpty()) {
-            return 0;
+            return includeFiveArea ? 0 : syncFiveAreaFixedFee(input, code);
         }
         validatePeriodAndResultPrice(currentList, FixedFee::getStartTime, FixedFee::getFee,
                 delta, input.getStartTime(), code, "固定费");
@@ -643,11 +713,45 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
                     .endTime(END_TIME)
                     .build());
         }
-        return currentList.size();
+        int touched = currentList.size();
+        if (!includeFiveArea) {
+            // 五区不调价，但时间轴同步到新的生效开始时间
+            touched += syncFiveAreaFixedFee(input, code);
+        }
+        return touched;
+    }
+
+    /**
+     * 五区固定费时间轴同步（金额不变）：当前生效的 area=5 数据旧行截断至新开始时间、按原金额生成新行
+     */
+    private int syncFiveAreaFixedFee(PriceBatchAdjustInput input, String code) {
+        QueryWrapper<FixedFee> qw = new QueryWrapper<>();
+        qw.eq("code", code).eq("end_time", END_TIME).eq("area", 5);
+        List<FixedFee> fiveList = fixedFeeMapper.selectList(qw);
+        if (fiveList.isEmpty()) {
+            return 0;
+        }
+        validatePeriodAndResultPrice(fiveList, FixedFee::getStartTime, FixedFee::getFee,
+                BigDecimal.ZERO, input.getStartTime(), code, "五区固定费");
+        FixedFee truncate = new FixedFee();
+        truncate.setEndTime(input.getStartTime());
+        fixedFeeMapper.update(truncate, qw);
+        for (FixedFee fee : fiveList) {
+            fixedFeeMapper.insert(FixedFee.builder()
+                    .code(fee.getCode())
+                    .area(fee.getArea())
+                    .weight(fee.getWeight())
+                    .fee(fee.getFee())
+                    .startTime(input.getStartTime())
+                    .endTime(END_TIME)
+                    .build());
+        }
+        return fiveList.size();
     }
 
     /**
      * 调整续重费（t_over_fee 的 first_fee 字段）：逻辑同固定费
+     * 五区开关=false时五区金额不调，但时间轴同步（旧行截断、按原金额生成新行）
      */
     private int adjustOverFee(PriceBatchAdjustInput input, String code, boolean includeFiveArea) {
         BigDecimal delta = input.getPriceDelta();
@@ -661,7 +765,7 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
         }
         List<OverFee> currentList = overFeeMapper.selectList(qw);
         if (currentList.isEmpty()) {
-            return 0;
+            return includeFiveArea ? 0 : syncFiveAreaOverFee(input, code);
         }
         validatePeriodAndResultPrice(currentList, OverFee::getStartTime, OverFee::getFirstFee,
                 delta, input.getStartTime(), code, "首重费");
@@ -679,7 +783,41 @@ public class CustomerServiceImpl extends ServiceImpl<CustomerMapper, Customer> i
                     .endTime(END_TIME)
                     .build());
         }
-        return currentList.size();
+        int touched = currentList.size();
+        if (!includeFiveArea) {
+            // 五区不调价，但时间轴同步到新的生效开始时间
+            touched += syncFiveAreaOverFee(input, code);
+        }
+        return touched;
+    }
+
+    /**
+     * 五区续重费时间轴同步（金额不变）：当前生效的 area=5 数据旧行截断至新开始时间、按原金额生成新行
+     */
+    private int syncFiveAreaOverFee(PriceBatchAdjustInput input, String code) {
+        QueryWrapper<OverFee> qw = new QueryWrapper<>();
+        qw.eq("code", code).eq("end_time", END_TIME).eq("area", 5);
+        List<OverFee> fiveList = overFeeMapper.selectList(qw);
+        if (fiveList.isEmpty()) {
+            return 0;
+        }
+        validatePeriodAndResultPrice(fiveList, OverFee::getStartTime, OverFee::getFirstFee,
+                BigDecimal.ZERO, input.getStartTime(), code, "五区首重费");
+        OverFee truncate = new OverFee();
+        truncate.setEndTime(input.getStartTime());
+        overFeeMapper.update(truncate, qw);
+        for (OverFee fee : fiveList) {
+            overFeeMapper.insert(OverFee.builder()
+                    .code(fee.getCode())
+                    .area(fee.getArea())
+                    .fee(fee.getFee())
+                    .firstWeight(fee.getFirstWeight())
+                    .firstFee(fee.getFirstFee())
+                    .startTime(input.getStartTime())
+                    .endTime(END_TIME)
+                    .build());
+        }
+        return fiveList.size();
     }
 
     /**

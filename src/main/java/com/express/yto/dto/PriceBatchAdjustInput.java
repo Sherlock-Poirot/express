@@ -35,7 +35,7 @@ public class PriceBatchAdjustInput {
     private BigDecimal prepayDelta;
 
     /**
-     * 五区（area=5）是否同步调价：true=五区一起调，false=五区保持不变
+     * 五区（area=5）是否同步调价：true=五区一起调价；false=五区金额不调，仅同步生效时间（旧行截断、按原金额生成新行）
      */
     private Boolean fiveAreaFlag;
 }
